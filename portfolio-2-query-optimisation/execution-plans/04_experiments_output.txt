@@ -1,0 +1,476 @@
+SET
+SET
+DROP INDEX
+DROP INDEX
+DROP INDEX
+DROP INDEX
+DROP TABLE
+DROP TABLE
+ANALYZE
+
+######################################################################
+E1 B-tree index on a frequently searched column (guest last name)
+######################################################################
+--- E1 BEFORE (no index on last_name) ---
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on guest  (cost=0.00..1456.00 rows=1192 width=46) (actual time=0.026..5.150 rows=1237.00 loops=1)
+   Filter: ((last_name)::text = 'Okafor'::text)
+   Rows Removed by Filter: 48763
+   Buffers: shared hit=831
+ Planning:
+   Buffers: shared hit=25
+ Planning Time: 0.246 ms
+ Execution Time: 5.227 ms
+(8 rows)
+
+CREATE INDEX
+ANALYZE
+--- E1 AFTER (idx_guest_last_name) ---
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on guest  (cost=18.12..903.40 rows=1268 width=46) (actual time=0.218..0.714 rows=1237.00 loops=1)
+   Recheck Cond: ((last_name)::text = 'Okafor'::text)
+   Heap Blocks: exact=655
+   Buffers: shared hit=655 read=3
+   ->  Bitmap Index Scan on idx_guest_last_name  (cost=0.00..17.80 rows=1268 width=0) (actual time=0.150..0.150 rows=1237.00 loops=1)
+         Index Cond: ((last_name)::text = 'Okafor'::text)
+         Index Searches: 1
+         Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=14 read=1
+ Planning Time: 0.202 ms
+ Execution Time: 0.769 ms
+(12 rows)
+
+
+######################################################################
+E2 Expression index: case-insensitive search defeats a plain index
+######################################################################
+--- E2 BEFORE (lower(last_name) cannot use idx_guest_last_name) ---
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on guest  (cost=0.00..1581.00 rows=250 width=16) (actual time=0.052..13.714 rows=1237.00 loops=1)
+   Filter: (lower((last_name)::text) = 'okafor'::text)
+   Rows Removed by Filter: 48763
+   Buffers: shared hit=831
+ Planning Time: 0.047 ms
+ Execution Time: 13.781 ms
+(6 rows)
+
+CREATE INDEX
+ANALYZE
+--- E2 AFTER (idx_guest_lower_last_name) ---
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on guest  (cost=17.98..907.24 rows=1250 width=16) (actual time=0.238..0.908 rows=1237.00 loops=1)
+   Recheck Cond: (lower((last_name)::text) = 'okafor'::text)
+   Heap Blocks: exact=655
+   Buffers: shared hit=655 read=3
+   ->  Bitmap Index Scan on idx_guest_lower_last_name  (cost=0.00..17.66 rows=1250 width=0) (actual time=0.161..0.162 rows=1237.00 loops=1)
+         Index Cond: (lower((last_name)::text) = 'okafor'::text)
+         Index Searches: 1
+         Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=14 read=1
+ Planning Time: 0.215 ms
+ Execution Time: 0.971 ms
+(12 rows)
+
+
+######################################################################
+E3 Partial index: failed payments are rare, so index only those rows
+######################################################################
+--- E3 BEFORE ---
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=11971.83..11982.03 rows=4081 width=48) (actual time=49.134..49.135 rows=25.00 loops=1)
+   Sort Key: (date_trunc('month'::text, paid_at))
+   Sort Method: quicksort  Memory: 26kB
+   Buffers: shared hit=4111 read=1466
+   ->  HashAggregate  (cost=11665.86..11727.08 rows=4081 width=48) (actual time=49.087..49.120 rows=25.00 loops=1)
+         Group Key: date_trunc('month'::text, paid_at)
+         Batches: 1  Memory Usage: 161kB
+         Buffers: shared hit=4111 read=1466
+         ->  Seq Scan on payment  (cost=0.00..11633.56 rows=4307 width=14) (actual time=26.079..48.358 rows=3906.00 loops=1)
+               Filter: ((paid_at >= '2025-01-01'::date) AND ((status)::text = 'failed'::text))
+               Rows Removed by Filter: 399147
+               Buffers: shared hit=4111 read=1466
+ Planning:
+   Buffers: shared hit=50
+ Planning Time: 0.238 ms
+ Execution Time: 49.229 ms
+(16 rows)
+
+CREATE INDEX
+ANALYZE
+--- E3 AFTER (idx_payment_failed_paid_at) ---
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=5592.05..5681.86 rows=3525 width=48) (actual time=4.601..6.127 rows=25.00 loops=1)
+   Group Key: (date_trunc('month'::text, paid_at))
+   Buffers: shared hit=114 read=13
+   ->  Sort  (cost=5592.05..5601.28 rows=3694 width=14) (actual time=4.521..4.843 rows=3906.00 loops=1)
+         Sort Key: (date_trunc('month'::text, paid_at))
+         Sort Method: quicksort  Memory: 219kB
+         Buffers: shared hit=114 read=13
+         ->  Bitmap Heap Scan on payment  (cost=80.91..5373.16 rows=3694 width=14) (actual time=0.802..3.137 rows=3906.00 loops=1)
+               Recheck Cond: ((paid_at >= '2025-01-01'::date) AND ((status)::text = 'failed'::text))
+               Heap Blocks: exact=111
+               Buffers: shared hit=114 read=13
+               ->  Bitmap Index Scan on idx_payment_failed_paid_at  (cost=0.00..79.99 rows=3694 width=0) (actual time=0.744..0.745 rows=3906.00 loops=1)
+                     Index Cond: (paid_at >= '2025-01-01'::date)
+                     Index Searches: 1
+                     Buffers: shared hit=3 read=13
+ Planning:
+   Buffers: shared hit=24 read=1
+ Planning Time: 0.799 ms
+ Execution Time: 6.184 ms
+(19 rows)
+
+--- E3 index sizes: partial index size compared with the table it covers ---
+ partial_index_size | payment_table_size 
+--------------------+--------------------
+ 200 kB             | 44 MB
+(1 row)
+
+
+######################################################################
+E4 Covering index (INCLUDE) enabling an index-only scan
+######################################################################
+--- E4 BEFORE ---
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=5624.79..5634.29 rows=3802 width=40) (actual time=86.137..86.139 rows=12.00 loops=1)
+   Sort Key: (date_trunc('month'::text, issued_at))
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=1845
+   ->  HashAggregate  (cost=5341.68..5398.71 rows=3802 width=40) (actual time=86.077..86.121 rows=12.00 loops=1)
+         Group Key: date_trunc('month'::text, issued_at)
+         Batches: 1  Memory Usage: 161kB
+         Buffers: shared hit=1845
+         ->  Seq Scan on invoice  (cost=0.00..5082.77 rows=51782 width=14) (actual time=0.067..61.667 rows=51781.00 loops=1)
+               Filter: ((issued_at >= '2025-01-01'::date) AND (issued_at < '2026-01-01'::date))
+               Rows Removed by Filter: 155440
+               Buffers: shared hit=1845
+ Planning:
+   Buffers: shared hit=28
+ Planning Time: 0.438 ms
+ Execution Time: 86.332 ms
+(16 rows)
+
+CREATE INDEX
+VACUUM
+--- E4 AFTER (idx_invoice_issued_cover) ---
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=2479.91..2489.38 rows=3790 width=40) (actual time=55.714..55.716 rows=12.00 loops=1)
+   Sort Key: (date_trunc('month'::text, issued_at))
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=1 read=202
+   ->  HashAggregate  (cost=2197.78..2254.63 rows=3790 width=40) (actual time=55.648..55.691 rows=12.00 loops=1)
+         Group Key: date_trunc('month'::text, issued_at)
+         Batches: 1  Memory Usage: 161kB
+         Buffers: shared hit=1 read=202
+         ->  Index Only Scan using idx_invoice_issued_cover on invoice  (cost=0.42..1942.26 rows=51104 width=14) (actual time=0.166..32.841 rows=51781.00 loops=1)
+               Index Cond: ((issued_at >= '2025-01-01'::date) AND (issued_at < '2026-01-01'::date))
+               Heap Fetches: 0
+               Index Searches: 1
+               Buffers: shared hit=1 read=202
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.453 ms
+ Execution Time: 55.934 ms
+(17 rows)
+
+
+######################################################################
+E5 Query rewrite: three ways to ask which rooms are free
+(the GiST index created by the EXCLUDE constraint serves all three)
+######################################################################
+--- E5a NOT EXISTS ---
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Right Anti Join  (cost=16.36..65.08 rows=1 width=8) (actual time=50.344..50.369 rows=21.00 loops=1)
+   Hash Cond: (br.room_id = r.room_id)
+   Buffers: shared hit=562
+   ->  Index Only Scan using booking_room_room_id_stay_period_excl on booking_room br  (cost=0.28..38.12 rows=791 width=4) (actual time=4.183..49.768 rows=712.00 loops=1)
+         Index Cond: (stay_period && '[2026-12-20,2026-12-24)'::daterange)
+         Heap Fetches: 0
+         Index Searches: 1
+         Buffers: shared hit=553
+   ->  Hash  (cost=14.58..14.58 rows=120 width=8) (actual time=0.118..0.120 rows=120.00 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 13kB
+         Buffers: shared hit=9
+         ->  Bitmap Heap Scan on room r  (cost=5.08..14.58 rows=120 width=8) (actual time=0.044..0.084 rows=120.00 loops=1)
+               Recheck Cond: (hotel_id = 1)
+               Heap Blocks: exact=8
+               Buffers: shared hit=9
+               ->  Bitmap Index Scan on idx_room_hotel  (cost=0.00..5.05 rows=120 width=0) (actual time=0.018..0.018 rows=120.00 loops=1)
+                     Index Cond: (hotel_id = 1)
+                     Index Searches: 1
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=72
+ Planning Time: 0.977 ms
+ Execution Time: 50.456 ms
+(23 rows)
+
+--- E5b NOT IN ---
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on room r  (cost=45.17..54.97 rows=60 width=8) (actual time=40.606..40.736 rows=21.00 loops=1)
+   Recheck Cond: (hotel_id = 1)
+   Filter: (NOT (ANY (room_id = (hashed SubPlan 1).col1)))
+   Rows Removed by Filter: 99
+   Heap Blocks: exact=8
+   Buffers: shared hit=532
+   ->  Bitmap Index Scan on idx_room_hotel  (cost=0.00..5.05 rows=120 width=0) (actual time=0.017..0.018 rows=120.00 loops=1)
+         Index Cond: (hotel_id = 1)
+         Index Searches: 1
+         Buffers: shared hit=1
+   SubPlan 1
+     ->  Index Only Scan using booking_room_room_id_stay_period_excl on booking_room br  (cost=0.28..38.12 rows=791 width=4) (actual time=0.305..40.007 rows=712.00 loops=1)
+           Index Cond: (stay_period && '[2026-12-20,2026-12-24)'::daterange)
+           Heap Fetches: 0
+           Index Searches: 1
+           Buffers: shared hit=523
+ Planning Time: 0.297 ms
+ Execution Time: 40.805 ms
+(18 rows)
+
+--- E5c LEFT JOIN ... IS NULL ---
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Right Anti Join  (cost=16.36..65.08 rows=1 width=8) (actual time=39.598..39.622 rows=21.00 loops=1)
+   Hash Cond: (br.room_id = r.room_id)
+   Buffers: shared hit=532
+   ->  Index Only Scan using booking_room_room_id_stay_period_excl on booking_room br  (cost=0.28..38.12 rows=791 width=4) (actual time=0.282..39.146 rows=712.00 loops=1)
+         Index Cond: (stay_period && '[2026-12-20,2026-12-24)'::daterange)
+         Heap Fetches: 0
+         Index Searches: 1
+         Buffers: shared hit=523
+   ->  Hash  (cost=14.58..14.58 rows=120 width=8) (actual time=0.120..0.122 rows=120.00 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 13kB
+         Buffers: shared hit=9
+         ->  Bitmap Heap Scan on room r  (cost=5.08..14.58 rows=120 width=8) (actual time=0.045..0.091 rows=120.00 loops=1)
+               Recheck Cond: (hotel_id = 1)
+               Heap Blocks: exact=8
+               Buffers: shared hit=9
+               ->  Bitmap Index Scan on idx_room_hotel  (cost=0.00..5.05 rows=120 width=0) (actual time=0.015..0.015 rows=120.00 loops=1)
+                     Index Cond: (hotel_id = 1)
+                     Index Searches: 1
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.418 ms
+ Execution Time: 39.678 ms
+(23 rows)
+
+
+######################################################################
+E6 Query rewrite: correlated subquery vs DISTINCT ON vs window function
+Task: the most recent booking of each guest (rows counted to keep output short)
+######################################################################
+--- E6a correlated subquery ---
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=5272998.35..5272998.36 rows=1 width=8) (actual time=8009.597..8009.598 rows=1.00 loops=1)
+   Buffers: shared hit=1961203
+   ->  Seq Scan on booking b  (cost=0.00..5272995.59 rows=1105 width=0) (actual time=1.392..7994.624 rows=49169.00 loops=1)
+         Filter: (check_in_date = (SubPlan 1))
+         Rows Removed by Filter: 171793
+         Buffers: shared hit=1961203
+         SubPlan 1
+           ->  Aggregate  (cost=23.83..23.84 rows=1 width=4) (actual time=0.034..0.034 rows=1.00 loops=220962)
+                 Buffers: shared hit=1958925
+                 ->  Bitmap Heap Scan on booking b2  (cost=4.46..23.82 rows=5 width=4) (actual time=0.013..0.020 rows=5.87 loops=220962)
+                       Recheck Cond: (guest_id = b.guest_id)
+                       Heap Blocks: exact=1296039
+                       Buffers: shared hit=1958925
+                       ->  Bitmap Index Scan on idx_booking_guest  (cost=0.00..4.46 rows=5 width=0) (actual time=0.008..0.008 rows=5.87 loops=220962)
+                             Index Cond: (guest_id = b.guest_id)
+                             Index Searches: 220962
+                             Buffers: shared hit=662886
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.599 ms
+ Execution Time: 8009.651 ms
+(21 rows)
+
+--- E6b DISTINCT ON ---
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=21572.86..21572.87 rows=1 width=8) (actual time=613.752..613.754 rows=1.00 loops=1)
+   Buffers: shared hit=221193
+   ->  Unique  (cost=0.83..21057.00 rows=41269 width=12) (actual time=0.266..605.839 rows=49103.00 loops=1)
+         Buffers: shared hit=221193
+         ->  Incremental Sort  (cost=0.83..20504.59 rows=220962 width=12) (actual time=0.264..545.692 rows=220962.00 loops=1)
+               Sort Key: booking.guest_id, booking.check_in_date DESC
+               Presorted Key: booking.guest_id
+               Full-sort Groups: 6423  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+               Buffers: shared hit=221193
+               ->  Index Scan using idx_booking_guest on booking  (cost=0.42..14242.81 rows=220962 width=12) (actual time=0.045..348.438 rows=220962.00 loops=1)
+                     Index Searches: 1
+                     Buffers: shared hit=221193
+ Planning Time: 0.209 ms
+ Execution Time: 613.838 ms
+(14 rows)
+
+--- E6c ROW_NUMBER() window function ---
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=27136.22..27136.23 rows=1 width=8) (actual time=607.777..607.779 rows=1.00 loops=1)
+   Buffers: shared hit=221193
+   ->  Subquery Scan on t  (cost=0.94..27133.45 rows=1105 width=0) (actual time=0.264..600.099 rows=49103.00 loops=1)
+         Filter: (t.rn = 1)
+         Buffers: shared hit=221193
+         ->  WindowAgg  (cost=0.94..24371.43 rows=220962 width=20) (actual time=0.263..590.160 rows=49103.00 loops=1)
+               Window: w1 AS (PARTITION BY booking.guest_id ORDER BY booking.check_in_date ROWS UNBOUNDED PRECEDING)
+               Run Condition: (row_number() OVER w1 <= 1)
+               Storage: Memory  Maximum Storage: 17kB
+               Buffers: shared hit=221193
+               ->  Incremental Sort  (cost=0.83..20504.59 rows=220962 width=8) (actual time=0.222..479.727 rows=220962.00 loops=1)
+                     Sort Key: booking.guest_id, booking.check_in_date DESC
+                     Presorted Key: booking.guest_id
+                     Full-sort Groups: 6423  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+                     Buffers: shared hit=221193
+                     ->  Index Scan using idx_booking_guest on booking  (cost=0.42..14242.81 rows=220962 width=8) (actual time=0.026..347.866 rows=220962.00 loops=1)
+                           Index Searches: 1
+                           Buffers: shared hit=221193
+ Planning:
+   Buffers: shared hit=11
+ Planning Time: 0.370 ms
+ Execution Time: 607.845 ms
+(22 rows)
+
+
+######################################################################
+E7 Partitioning: a month of bookings from a flat table, a partitioned
+table, and a flat table with an index (all three hold the same rows)
+######################################################################
+SELECT 220962
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+INSERT 0 220962
+ANALYZE
+ANALYZE
+--- E7a flat table, no index ---
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=5640.56..5640.57 rows=1 width=16) (actual time=68.879..68.880 rows=1.00 loops=1)
+   Buffers: shared hit=2296 read=8
+   ->  Seq Scan on booking_flat  (cost=0.00..5618.43 rows=4426 width=2) (actual time=0.413..67.716 rows=4517.00 loops=1)
+         Filter: ((check_in_date >= '2025-06-01'::date) AND (check_in_date < '2025-07-01'::date))
+         Rows Removed by Filter: 216445
+         Buffers: shared hit=2296 read=8
+ Planning:
+   Buffers: shared hit=14
+ Planning Time: 0.408 ms
+ Execution Time: 68.923 ms
+(10 rows)
+
+--- E7b partitioned by year (partition pruning) ---
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1409.87..1409.88 rows=1 width=16) (actual time=25.376..25.377 rows=1.00 loops=1)
+   Buffers: shared hit=565
+   ->  Seq Scan on booking_part_2025 booking_part  (cost=0.00..1386.92 rows=4589 width=2) (actual time=0.069..24.066 rows=4517.00 loops=1)
+         Filter: ((check_in_date >= '2025-06-01'::date) AND (check_in_date < '2025-07-01'::date))
+         Rows Removed by Filter: 50278
+         Buffers: shared hit=565
+ Planning:
+   Buffers: shared hit=57
+ Planning Time: 0.992 ms
+ Execution Time: 25.445 ms
+(10 rows)
+
+CREATE INDEX
+ANALYZE
+--- E7c flat table with a B-tree index on check_in_date ---
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=2460.73..2460.74 rows=1 width=16) (actual time=2.085..2.086 rows=1.00 loops=1)
+   Buffers: shared hit=642 read=6
+   ->  Bitmap Heap Scan on booking_flat  (cost=63.37..2437.76 rows=4593 width=2) (actual time=0.588..1.547 rows=4517.00 loops=1)
+         Recheck Cond: ((check_in_date >= '2025-06-01'::date) AND (check_in_date < '2025-07-01'::date))
+         Heap Blocks: exact=642
+         Buffers: shared hit=642 read=6
+         ->  Bitmap Index Scan on idx_booking_flat_checkin  (cost=0.00..62.23 rows=4593 width=0) (actual time=0.477..0.477 rows=4517.00 loops=1)
+               Index Cond: ((check_in_date >= '2025-06-01'::date) AND (check_in_date < '2025-07-01'::date))
+               Index Searches: 1
+               Buffers: shared read=6
+ Planning:
+   Buffers: shared hit=10 read=1
+ Planning Time: 0.251 ms
+ Execution Time: 2.170 ms
+(14 rows)
+
+
+######################################################################
+E8 Pre-computation: live view vs materialized view (monthly revenue)
+Requires 03_views_functions.sql to have been run first
+######################################################################
+--- E8a query on the live view v_hotel_monthly_revenue ---
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Subquery Scan on v_hotel_monthly_revenue  (cost=10245.69..10359.39 rows=3790 width=48) (actual time=296.198..296.263 rows=25.00 loops=1)
+   Buffers: shared hit=2483
+   ->  HashAggregate  (cost=10245.69..10321.49 rows=3790 width=56) (actual time=296.196..296.255 rows=25.00 loops=1)
+         Group Key: date_trunc('month'::text, i.issued_at)
+         Batches: 1  Memory Usage: 161kB
+         Buffers: shared hit=2483
+         ->  Hash Join  (cost=3945.00..10144.92 rows=13436 width=26) (actual time=29.380..281.735 rows=20219.00 loops=1)
+               Hash Cond: (i.booking_id = b.booking_id)
+               Buffers: shared hit=2483
+               ->  Seq Scan on invoice i  (cost=0.00..5989.42 rows=67395 width=18) (actual time=0.047..194.600 rows=101333.00 loops=1)
+                     Filter: (((status)::text = ANY ('{paid,partially_paid}'::text[])) AND ((date_trunc('month'::text, issued_at))::date >= '2025-01-01'::date))
+                     Rows Removed by Filter: 105888
+                     Buffers: shared hit=1845
+               ->  Hash  (cost=3394.35..3394.35 rows=44052 width=8) (actual time=29.137..29.139 rows=44188.00 loops=1)
+                     Buckets: 65536  Batches: 1  Memory Usage: 2239kB
+                     Buffers: shared hit=638
+                     ->  Bitmap Heap Scan on booking b  (cost=565.70..3394.35 rows=44052 width=8) (actual time=2.665..15.212 rows=44188.00 loops=1)
+                           Recheck Cond: (hotel_id = 1)
+                           Heap Blocks: exact=581
+                           Buffers: shared hit=638
+                           ->  Bitmap Index Scan on idx_booking_hotel_dt  (cost=0.00..554.68 rows=44052 width=0) (actual time=2.565..2.565 rows=44188.00 loops=1)
+                                 Index Cond: (hotel_id = 1)
+                                 Index Searches: 1
+                                 Buffers: shared hit=57
+ Planning:
+   Buffers: shared hit=37
+ Planning Time: 0.461 ms
+ Execution Time: 297.373 ms
+(28 rows)
+
+--- E8b same question on mv_hotel_monthly_revenue ---
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on mv_hotel_monthly_revenue  (cost=0.00..5.67 rows=25 width=24) (actual time=0.040..0.109 rows=25.00 loops=1)
+   Filter: ((month >= '2025-01-01'::date) AND (hotel_id = 1))
+   Rows Removed by Filter: 220
+   Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=15
+ Planning Time: 0.287 ms
+ Execution Time: 0.132 ms
+(8 rows)
+
+
+######################################################################
+Index inventory after the experiments
+######################################################################
+  tablename   |         indexname          |  size   
+--------------+----------------------------+---------
+ booking_flat | idx_booking_flat_checkin   | 1504 kB
+ guest        | idx_guest_last_name        | 368 kB
+ guest        | idx_guest_lower_last_name  | 368 kB
+ invoice      | idx_invoice_issued_cover   | 6400 kB
+ payment      | idx_payment_failed_paid_at | 200 kB
+(5 rows)
+

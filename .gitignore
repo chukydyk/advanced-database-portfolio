@@ -1,0 +1,13 @@
+# Secrets and credentials: never commit these
+.env
+*.pem
+*.key
+credentials*.json
+# Local database files and dumps containing real data
+*.sqlite
+*.db
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

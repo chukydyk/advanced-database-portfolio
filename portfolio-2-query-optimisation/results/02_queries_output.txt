@@ -1,0 +1,349 @@
+
+======================================================================
+Q1 Availability search: free Double rooms at The Homes Abuja
+for 20 to 24 Dec 2026 (check-out day is free: half-open range)
+Technique: NOT EXISTS anti-join + range overlap operator (&&)
+======================================================================
+ room_id | room_number | floor |    type_name
+---------+-------------+-------+-----------------
+     156 | 302         |     3 | Standard Double
+     206 | 312         |     3 | Standard Double
+     221 | 315         |     3 | Standard Double
+     241 | 404         |     4 | Standard Double
+     291 | 414         |     4 | Standard Double
+(5 rows)
+
+
+======================================================================
+Q2 The next 15 upcoming confirmed bookings at The Homes Lagos
+Technique: seven-table join
+======================================================================
+ booking_id |     guest     |      hotel      | room_number |    type_name    | check_in_date | check_out_date | nights | source_name  | rate_applied
+------------+---------------+-----------------+-------------+-----------------+---------------+----------------+--------+--------------+--------------
+       6275 | Aisha Lawal   | The Homes Lagos | 104         | Standard Single | 2026-10-25    | 2026-10-30     |      5 | Mobile App   |        63.00
+      21066 | Ngozi Njoroge | The Homes Lagos | 112         | Standard Single | 2026-10-25    | 2026-10-29     |      4 | Travel Agent |        63.00
+      32178 | Kwame Yakubu  | The Homes Lagos | 203         | Standard Single | 2026-10-25    | 2026-10-29     |      4 | Corporate    |        63.00
+      37722 | Bola Okafor   | The Homes Lagos | 206         | Standard Single | 2026-10-25    | 2026-10-27     |      2 | Mobile App   |        63.00
+      41423 | Aisha Eze     | The Homes Lagos | 208         | Standard Single | 2026-10-25    | 2026-10-30     |      5 | Website      |        63.00
+      61768 | Fatima Kamau  | The Homes Lagos | 304         | Standard Double | 2026-10-25    | 2026-10-29     |      4 | Website      |        84.00
+      69183 | Peter Boateng | The Homes Lagos | 308         | Standard Double | 2026-10-25    | 2026-10-28     |      3 | Phone        |        84.00
+      96910 | Zainab Bello  | The Homes Lagos | 408         | Standard Double | 2026-10-25    | 2026-10-28     |      3 | Website      |        84.00
+     102468 | Obinna Lawal  | The Homes Lagos | 411         | Standard Double | 2026-10-25    | 2026-10-26     |      1 | Website      |        84.00
+     109866 | Kamau Addo    | The Homes Lagos | 415         | Standard Double | 2026-10-25    | 2026-10-29     |      4 | Website      |        67.20
+     111728 | Aisha Lawal   | The Homes Lagos | 501         | Twin            | 2026-10-25    | 2026-10-26     |      1 | Travel Agent |        89.25
+     133910 | Amina Mensah  | The Homes Lagos | 513         | Twin            | 2026-10-25    | 2026-10-26     |      1 | Corporate    |        89.25
+     156109 | Obinna Nwosu  | The Homes Lagos | 610         | Deluxe          | 2026-10-25    | 2026-10-29     |      4 | Website      |       122.85
+     157982 | Bola Bello    | The Homes Lagos | 611         | Deluxe          | 2026-10-25    | 2026-10-29     |      4 | Travel Agent |       136.50
+     161667 | Musa Yakubu   | The Homes Lagos | 613         | Deluxe          | 2026-10-25    | 2026-10-28     |      3 | Travel Agent |       136.50
+(15 rows)
+
+
+======================================================================
+Q3 Revenue per hotel per quarter, 2025 (paid and partly paid invoices)
+Technique: aggregation, date_trunc, joins
+======================================================================
+          hotel          | quarter | invoices |  revenue
+-------------------------+---------+----------+------------
+ The Homes Abuja         | 2025 Q1 |     2458 |  799164.51
+ The Homes Abuja         | 2025 Q2 |     2535 |  862960.36
+ The Homes Abuja         | 2025 Q3 |     2465 |  927238.92
+ The Homes Abuja         | 2025 Q4 |     2520 |  977701.49
+ The Homes Accra         | 2025 Q1 |     2494 |  751374.92
+ The Homes Accra         | 2025 Q2 |     2537 |  842522.20
+ The Homes Accra         | 2025 Q3 |     2571 |  886472.87
+ The Homes Accra         | 2025 Q4 |     2551 |  926709.39
+ The Homes Lagos         | 2025 Q1 |     2498 |  836017.95
+ The Homes Lagos         | 2025 Q2 |     2472 |  901428.74
+ The Homes Lagos         | 2025 Q3 |     2545 |  988915.92
+ The Homes Lagos         | 2025 Q4 |     2569 | 1020385.59
+ The Homes Nairobi       | 2025 Q1 |     2473 |  796097.98
+ The Homes Nairobi       | 2025 Q2 |     2498 |  870874.59
+ The Homes Nairobi       | 2025 Q3 |     2549 |  946845.98
+ The Homes Nairobi       | 2025 Q4 |     2529 |  974947.46
+ The Homes Port Harcourt | 2025 Q1 |     2502 |  880933.94
+ The Homes Port Harcourt | 2025 Q2 |     2517 |  948484.32
+ The Homes Port Harcourt | 2025 Q3 |     2581 | 1019794.80
+ The Homes Port Harcourt | 2025 Q4 |     2561 | 1091025.53
+(20 rows)
+
+
+======================================================================
+Q4 Top 3 guests by total spend at each hotel (all time)
+Technique: CTE + RANK() window function partitioned by hotel
+======================================================================
+          hotel          | rnk |     guest      | stays | total_spend
+-------------------------+-----+----------------+-------+-------------
+ The Homes Abuja         |   1 | Ibrahim Hassan |    11 |     5156.98
+ The Homes Abuja         |   2 | Halima Johnson |     6 |     4788.49
+ The Homes Abuja         |   3 | Yaw Ogunleye   |    10 |     3896.45
+ The Homes Accra         |   1 | Ifeoma Dupont  |     7 |     3729.61
+ The Homes Accra         |   2 | Fatou Adeyemi  |     4 |     3419.15
+ The Homes Accra         |   3 | Ama Yakubu     |     6 |     3280.65
+ The Homes Lagos         |   1 | Maria Lawal    |     9 |     5443.96
+ The Homes Lagos         |   2 | Ngozi Asante   |    10 |     5100.83
+ The Homes Lagos         |   3 | Bola Onyeka    |     4 |     4044.32
+ The Homes Nairobi       |   1 | Yaw Ogunleye   |    11 |     4324.73
+ The Homes Nairobi       |   2 | Otieno Bello   |     7 |     3904.41
+ The Homes Nairobi       |   3 | Ama Mensah     |     6 |     3713.06
+ The Homes Port Harcourt |   1 | Fatou Asante   |     7 |     4501.79
+ The Homes Port Harcourt |   2 | Peter Otieno   |     5 |     4376.44
+ The Homes Port Harcourt |   3 | Ifeoma Smith   |     6 |     4206.17
+(15 rows)
+
+
+======================================================================
+Q5 Monthly occupancy rate per hotel, 2025
+Technique: generate_series calendar, range arithmetic, nested CTEs
+======================================================================
+          hotel          |  month  | room_nights | occupancy_pct
+-------------------------+---------+-------------+---------------
+ The Homes Abuja         | 2025-01 |        2584 |          69.5
+ The Homes Abuja         | 2025-02 |        2338 |          69.6
+ The Homes Abuja         | 2025-03 |        2599 |          69.9
+ The Homes Abuja         | 2025-04 |        2465 |          68.5
+ The Homes Abuja         | 2025-05 |        2522 |          67.8
+ The Homes Abuja         | 2025-06 |        2477 |          68.8
+ The Homes Abuja         | 2025-07 |        2540 |          68.3
+ The Homes Abuja         | 2025-08 |        2557 |          68.7
+ The Homes Abuja         | 2025-09 |        2488 |          69.1
+ The Homes Abuja         | 2025-10 |        2505 |          67.3
+ The Homes Abuja         | 2025-11 |        2433 |          67.6
+ The Homes Abuja         | 2025-12 |        2549 |          68.5
+ The Homes Accra         | 2025-01 |        2504 |          67.3
+ The Homes Accra         | 2025-02 |        2308 |          68.7
+ The Homes Accra         | 2025-03 |        2585 |          69.5
+ The Homes Accra         | 2025-04 |        2555 |          71.0
+ The Homes Accra         | 2025-05 |        2638 |          70.9
+ The Homes Accra         | 2025-06 |        2539 |          70.5
+ The Homes Accra         | 2025-07 |        2498 |          67.2
+ The Homes Accra         | 2025-08 |        2604 |          70.0
+ The Homes Accra         | 2025-09 |        2497 |          69.4
+ The Homes Accra         | 2025-10 |        2537 |          68.2
+ The Homes Accra         | 2025-11 |        2470 |          68.6
+ The Homes Accra         | 2025-12 |        2595 |          69.8
+ The Homes Lagos         | 2025-01 |        2521 |          67.8
+ The Homes Lagos         | 2025-02 |        2354 |          70.1
+ The Homes Lagos         | 2025-03 |        2566 |          69.0
+ The Homes Lagos         | 2025-04 |        2476 |          68.8
+ The Homes Lagos         | 2025-05 |        2509 |          67.4
+ The Homes Lagos         | 2025-06 |        2504 |          69.6
+ The Homes Lagos         | 2025-07 |        2508 |          67.4
+ The Homes Lagos         | 2025-08 |        2574 |          69.2
+ The Homes Lagos         | 2025-09 |        2495 |          69.3
+ The Homes Lagos         | 2025-10 |        2540 |          68.3
+ The Homes Lagos         | 2025-11 |        2463 |          68.4
+ The Homes Lagos         | 2025-12 |        2548 |          68.5
+ The Homes Nairobi       | 2025-01 |        2553 |          68.6
+ The Homes Nairobi       | 2025-02 |        2335 |          69.5
+ The Homes Nairobi       | 2025-03 |        2564 |          68.9
+ The Homes Nairobi       | 2025-04 |        2470 |          68.6
+ The Homes Nairobi       | 2025-05 |        2597 |          69.8
+ The Homes Nairobi       | 2025-06 |        2520 |          70.0
+ The Homes Nairobi       | 2025-07 |        2594 |          69.7
+ The Homes Nairobi       | 2025-08 |        2549 |          68.5
+ The Homes Nairobi       | 2025-09 |        2508 |          69.7
+ The Homes Nairobi       | 2025-10 |        2543 |          68.4
+ The Homes Nairobi       | 2025-11 |        2481 |          68.9
+ The Homes Nairobi       | 2025-12 |        2559 |          68.8
+ The Homes Port Harcourt | 2025-01 |        2583 |          69.4
+ The Homes Port Harcourt | 2025-02 |        2282 |          67.9
+ The Homes Port Harcourt | 2025-03 |        2570 |          69.1
+ The Homes Port Harcourt | 2025-04 |        2522 |          70.1
+ The Homes Port Harcourt | 2025-05 |        2502 |          67.3
+ The Homes Port Harcourt | 2025-06 |        2532 |          70.3
+ The Homes Port Harcourt | 2025-07 |        2555 |          68.7
+ The Homes Port Harcourt | 2025-08 |        2594 |          69.7
+ The Homes Port Harcourt | 2025-09 |        2463 |          68.4
+ The Homes Port Harcourt | 2025-10 |        2631 |          70.7
+ The Homes Port Harcourt | 2025-11 |        2509 |          69.7
+ The Homes Port Harcourt | 2025-12 |        2508 |          67.4
+(60 rows)
+
+
+======================================================================
+Q6 Chain-wide monthly revenue with month-on-month growth and running total
+Technique: LAG() and cumulative SUM() window functions
+======================================================================
+  month  |  revenue   | growth_pct | running_total
+---------+------------+------------+---------------
+ 2025-01 | 1559618.97 |          - |    1559618.97
+ 2025-02 | 1188331.70 |      -23.8 |    2747950.67
+ 2025-03 | 1315638.63 |       10.7 |    4063589.30
+ 2025-04 | 1285297.14 |       -2.3 |    5348886.44
+ 2025-05 | 1555057.73 |       21.0 |    6903944.17
+ 2025-06 | 1585915.34 |        2.0 |    8489859.51
+ 2025-07 | 1599292.52 |        0.8 |   10089152.03
+ 2025-08 | 1616659.39 |        1.1 |   11705811.42
+ 2025-09 | 1553316.58 |       -3.9 |   13259128.00
+ 2025-10 | 1603148.50 |        3.2 |   14862276.50
+ 2025-11 | 1557697.17 |       -2.8 |   16419973.67
+ 2025-12 | 1829923.79 |       17.5 |   18249897.46
+(12 rows)
+
+
+======================================================================
+Q7 Cancellation and no-show rate by booking channel
+Technique: conditional aggregation with FILTER
+======================================================================
+ source_name  | bookings | cancelled | no_shows | cancel_pct | no_show_pct
+--------------+----------+-----------+----------+------------+-------------
+ Website      |    77242 |      4684 |     1380 |       6.06 |        1.79
+ Travel Agent |    44062 |      2656 |      795 |       6.03 |        1.80
+ Walk-in      |    21918 |      1305 |      404 |       5.95 |        1.84
+ Mobile App   |    44381 |      2619 |      862 |       5.90 |        1.94
+ Phone        |    22173 |      1270 |      416 |       5.73 |        1.88
+ Corporate    |    11186 |       614 |      222 |       5.49 |        1.98
+(6 rows)
+
+
+======================================================================
+Q8 Guests who have stayed (completed) at four or more different hotels
+Technique: GROUP BY ... HAVING with COUNT(DISTINCT), subquery in FROM
+======================================================================
+ guest_id |     guest      |  nationality  | hotels_visited | completed_stays
+----------+----------------+---------------+----------------+-----------------
+        1 | Ibrahim Hassan | Nigerian      |              5 |              44
+        2 | Yaw Ogunleye   | Kenyan        |              5 |              41
+       12 | Kofi Mensah    | Nigerian      |              5 |              29
+        3 | Kamau Odhiambo | Cameroonian   |              5 |              26
+       19 | Akosua Adebayo | Chinese       |              5 |              26
+       25 | Daniel Dupont  | Kenyan        |              5 |              26
+        4 | Kamau Usman    | Indian        |              5 |              25
+       10 | Amina Martin   | Ghanaian      |              5 |              25
+       34 | John Lawal     | German        |              5 |              25
+       13 | Ama Eze        | Nigerian      |              5 |              24
+      104 | Fatou Asante   | South African |              5 |              23
+      208 | Njeri Mwangi   | Chinese       |              4 |              23
+        6 | Obinna Asante  | Nigerian      |              5 |              22
+       11 | Tunde Wanjiku  | American      |              5 |              22
+       48 | Sarah Mwangi   | Ghanaian      |              5 |              22
+(15 rows)
+
+
+======================================================================
+Q9 Largest outstanding balances on completed stays
+Technique: LEFT JOIN to an aggregated derived table, FILTER, CASE
+======================================================================
+ invoice_id | booking_id |      guest      |          hotel          | total_amount | net_paid | balance_due
+------------+------------+-----------------+-------------------------+--------------+----------+-------------
+      97364 |     213678 | Chukwuma Uche   | The Homes Port Harcourt |      2140.33 |   642.10 |     1498.23
+      94834 |     208209 | Halima Adebayo  | The Homes Port Harcourt |      2111.95 |   633.59 |     1478.36
+      96537 |     211908 | Wanjiru Dupont  | The Homes Port Harcourt |      2069.38 |   620.81 |     1448.57
+     199463 |     216356 | Adaeze Hassan   | The Homes Nairobi       |      1994.13 |   598.24 |     1395.89
+      99797 |     218933 | Akosua Adebayo  | The Homes Lagos         |      1975.31 |   592.59 |     1382.72
+      88466 |     194343 | Maria Addo      | The Homes Abuja         |      1961.88 |   588.56 |     1373.32
+      92585 |     203222 | Zainab Abubakar | The Homes Nairobi       |      1961.88 |   5
+88.56 |     1373.32
+     195408 |     207381 | Bola Dupont     | The Homes Abuja         |      1945.75 |   583.73 |     1362.02
+     193770 |     203771 | Kamau Usman     | The Homes Abuja         |      1945.75 |   5
+83.73 |     1362.02
+     190209 |     195821 | Wanjiru Johnson | The Homes Nairobi       |      1943.06 |   5
+82.92 |     1360.14
+     201074 |     219966 | David Abubakar  | The Homes Nairobi       |      1935.00 |   5
+80.50 |     1354.50
+     190123 |     195628 | Emeka Asante    | The Homes Accra         |      1787.19 |   5
+36.16 |     1251.03
+     193688 |     203588 | Bola Smith      | The Homes Abuja         |      1698.50 |   5
+09.55 |     1188.95
+     191710 |     199155 | Fatima Onyeka   | The Homes Accra         |      1697.86 |   5
+09.36 |     1188.50
+      91438 |     200841 | Halima Dupont   | The Homes Port Harcourt |      1690.98 |   507.29 |     1183.69
+(15 rows)
+
+
+======================================================================
+Q10 Ancillary service revenue by hotel with share of the hotel total
+Technique: aggregation + SUM() OVER (PARTITION BY ...) window
+======================================================================
+          hotel          |  service_name  | units_sold |  revenue  | pct_of_hotel
+-------------------------+----------------+------------+-----------+--------------
+ The Homes Abuja         | Spa            |       5879 | 352740.00 |         36.3
+ The Homes Abuja         | Airport Pickup |       5788 | 202580.00 |         20.8
+ The Homes Abuja         | Restaurant     |       5754 | 143850.00 |         14.8
+ The Homes Abuja         | Room Service   |       5924 | 118480.00 |         12.2
+ The Homes Abuja         | Minibar        |       5682 |  85230.00 |          8.8
+ The Homes Abuja         | Laundry        |       5844 |  70128.00 |          7.2
+ The Homes Accra         | Spa            |       5669 | 323133.00 |         35.5
+ The Homes Accra         | Airport Pickup |       5732 | 190589.00 |         20.9
+ The Homes Accra         | Restaurant     |       5807 | 137916.25 |         15.1
+ The Homes Accra         | Room Service   |       5902 | 112138.00 |         12.3
+ The Homes Accra         | Minibar        |       5698 |  81196.50 |          8.9
+ The Homes Accra         | Laundry        |       5829 |  66450.60 |          7.3
+ The Homes Lagos         | Spa            |       5886 | 370818.00 |         36.3
+ The Homes Lagos         | Airport Pickup |       5736 | 210798.00 |         20.6
+ The Homes Lagos         | Restaurant     |       5849 | 153536.25 |         15.0
+ The Homes Lagos         | Room Service   |       5832 | 122472.00 |         12.0
+ The Homes Lagos         | Minibar        |       5845 |  92058.75 |          9.0
+ The Homes Lagos         | Laundry        |       5690 |  71694.00 |          7.0
+ The Homes Nairobi       | Spa            |       6096 | 365760.00 |         37.2
+ The Homes Nairobi       | Airport Pickup |       5736 | 200760.00 |         20.4
+ The Homes Nairobi       | Restaurant     |       5882 | 147050.00 |         15.0
+ The Homes Nairobi       | Room Service   |       5830 | 116600.00 |         11.9
+ The Homes Nairobi       | Minibar        |       5577 |  83655.00 |          8.5
+ The Homes Nairobi       | Laundry        |       5692 |  68304.00 |          7.0
+ The Homes Port Harcourt | Spa            |       5775 | 381150.00 |         36.2
+ The Homes Port Harcourt | Airport Pickup |       5630 | 216755.00 |         20.6
+ The Homes Port Harcourt | Restaurant     |       5622 | 154605.00 |         14.7
+ The Homes Port Harcourt | Room Service   |       5835 | 128370.00 |         12.2
+ The Homes Port Harcourt | Minibar        |       5720 |  94380.00 |          9.0
+ The Homes Port Harcourt | Laundry        |       5925 |  78210.00 |          7.4
+(30 rows)
+
+
+======================================================================
+Q11 Average length of stay and average daily rate by hotel and room type,
+with sub-totals per hotel and a chain-wide grand total
+Technique: GROUP BY ROLLUP, GROUPING()
+======================================================================
+          hotel          |    room_type    | completed_stays | avg_nights | avg_daily_rate
+-------------------------+-----------------+-----------------+------------+----------------
+ The Homes Abuja         | Deluxe          |            8015 |       3.01 |         122.29
+ The Homes Abuja         | Standard Double |            9586 |       2.99 |          75.33
+ The Homes Abuja         | Standard Single |            9630 |       3.00 |          56.38
+ The Homes Abuja         | Suite           |            4779 |       3.00 |         234.89
+ The Homes Abuja         | Twin            |            6339 |       3.02 |          79.91
+ The Homes Abuja         | all room types  |           38349 |       3.00 |         101.03
+ The Homes Accra         | Deluxe          |            8071 |       3.00 |         116.14
+ The Homes Accra         | Standard Double |            9616 |       2.99 |          71.40
+ The Homes Accra         | Standard Single |            9553 |       2.99 |          53.58
+ The Homes Accra         | Suite           |            4780 |       3.01 |         223.58
+ The Homes Accra         | Twin            |            6429 |       2.99 |          76.05
+ The Homes Accra         | all room types  |           38449 |       2.99 |          96.06
+ The Homes Lagos         | Deluxe          |            7932 |       3.01 |         128.3
+1
+ The Homes Lagos         | Standard Double |            9577 |       2.99 |          79.01
+ The Homes Lagos         | Standard Single |            9611 |       2.98 |          59.29
+ The Homes Lagos         | Suite           |            4812 |       3.01 |         246.66
+ The Homes Lagos         | Twin            |            6399 |       3.00 |          84.13
+ The Homes Lagos         | all room types  |           38331 |       3.00 |         106.17
+ The Homes Nairobi       | Deluxe          |            8088 |       2.99 |         122.11
+ The Homes Nairobi       | Standard Double |            9612 |       3.00 |          75.35
+ The Homes Nairobi       | Standard Single |            9568 |       3.02 |          56.41
+ The Homes Nairobi       | Suite           |            4793 |       3.00 |         234.90
+ The Homes Nairobi       | Twin            |            6359 |       3.02 |          80.02
+ The Homes Nairobi       | all room types  |           38420 |       3.00 |         101.15
+ The Homes Port Harcourt | Deluxe          |            7967 |       3.01 |         134.40
+ The Homes Port Harcourt | Standard Double |            9605 |       3.00 |          82.77
+ The Homes Port Harcourt | Standard Single |            9612 |       3.01 |          62.05
+ The Homes Port Harcourt | Suite           |            4815 |       2.98 |         258.32
+ The Homes Port Harcourt | Twin            |            6441 |       3.00 |          87.85
+ The Homes Port Harcourt | all room types  |           38440 |       3.01 |         111.13
+ ALL HOTELS              | all room types  |          191989 |       3.00 |         103.11
+(31 rows)
+
+
+======================================================================
+Q12 Check-in demand by day of week (staffing insight)
+Technique: EXTRACT, window SUM for percentage share
+======================================================================
+ weekday | dow_no | check_ins | pct_of_total
+---------+--------+-----------+--------------
+ Mon     |      1 |     27430 |         14.3
+ Tue     |      2 |     27585 |         14.3
+ Wed     |      3 |     27491 |         14.3
+ Thu     |      4 |     27415 |         14.2
+ Fri     |      5 |     27556 |         14.3
+ Sat     |      6 |     27499 |         14.3
+ Sun     |      7 |     27476 |         14.3
+(7 rows)
+
