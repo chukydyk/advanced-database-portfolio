@@ -19,8 +19,8 @@ The Homes is a simulated hotel chain with several branches. The database covers 
 ## Repository structure
 | Folder | Portfolio | Status |
 |---|---|---|
-| `portfolio-1-database-design/` | Database design and modelling: case study, ER diagram, schema, keys, constraints, normalisation | Draft complete |
-| `portfolio-2-query-optimisation/` | Query processing and optimisation: SQL queries, execution plans, indexing, performance analysis | Not started |
+| `portfolio-1-database-design/` | Database design and modelling: case study, ER diagram, schema, keys, constraints, normalisation | completed |
+| `portfolio-2-query-optimisation/` | Query processing and optimisation: SQL queries, execution plans, indexing, performance analysis | Completed |
 | `portfolio-3-transactions-concurrency/` | Transactions and concurrency: commit, rollback, isolation, locking | Not started |
 | `portfolio-4-nosql/` | NoSQL and advanced data models | Not started |
 | `portfolio-5-distributed-cloud/` | Distributed and cloud database exercise | Not started |
