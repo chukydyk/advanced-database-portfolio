@@ -1,0 +1,589 @@
+
+======================================================================
+D1a  LOST UPDATE: read-modify-write at READ COMMITTED (the problem)
+======================================================================
+[A] BEGIN;
+[A] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 \gset
+[A] \echo A read the balance: :bal
+[A] A read the balance: 1000
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 \gset
+[B] \echo B read the balance: :bal
+[B] B read the balance: 1000
+[B] SELECT pg_sleep(2) AS _ \gset
+[A] UPDATE demo_loyalty_account SET points = :bal + 100 WHERE guest_id = 5;
+[A] COMMIT;
+[A] \echo A committed (wrote balance + 100)
+[A] A committed (wrote balance + 100)
+[B] UPDATE demo_loyalty_account SET points = :bal + 200 WHERE guest_id = 5;
+[B] COMMIT;
+[B] \echo B committed (wrote balance + 200)
+[B] B committed (wrote balance + 200)
+[result]  final_balance | correct_balance 
+[result] ---------------+-----------------
+[result]           1200 |            1300
+[result] (1 row)
+[result] 
+
+======================================================================
+D1b  FIX 1: atomic UPDATE (points = points + n) lets the database serialise the writes
+======================================================================
+[A] BEGIN;
+[A] UPDATE demo_loyalty_account SET points = points + 100 WHERE guest_id = 5;
+[A] \echo A updated the row and holds its lock
+[A] A updated the row and holds its lock
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] \echo B now updates the same row and must wait for A
+[B] B now updates the same row and must wait for A
+[B] UPDATE demo_loyalty_account SET points = points + 200 WHERE guest_id = 5;
+[A] COMMIT;
+[A] \echo A committed
+[A] A committed
+[B] \echo B update finished (it waited, then applied on top of the change A made)
+[B] B update finished (it waited, then applied on top of the change A made)
+[B] COMMIT;
+[result]  final_balance | correct_balance 
+[result] ---------------+-----------------
+[result]           1300 |            1300
+[result] (1 row)
+[result] 
+
+======================================================================
+D1c  FIX 2: pessimistic locking with SELECT ... FOR UPDATE
+======================================================================
+[A] BEGIN;
+[A] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 FOR UPDATE \gset
+[A] \echo A read the balance and locked the row: :bal
+[A] A read the balance and locked the row: 1000
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] \echo B asks for the balance with FOR UPDATE and must wait
+[B] B asks for the balance with FOR UPDATE and must wait
+[B] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 FOR UPDATE \gset
+[B] \echo B finally read the balance: :bal
+[A] UPDATE demo_loyalty_account SET points = :bal + 100 WHERE guest_id = 5;
+[B] B finally read the balance: 1100
+[A] COMMIT;
+[A] \echo A committed
+[A] A committed
+[B] UPDATE demo_loyalty_account SET points = :bal + 200 WHERE guest_id = 5;
+[B] COMMIT;
+[B] \echo B committed
+[B] B committed
+[result]  final_balance | correct_balance 
+[result] ---------------+-----------------
+[result]           1300 |            1300
+[result] (1 row)
+[result] 
+
+======================================================================
+D1d  FIX 3: REPEATABLE READ detects the conflict and aborts one transaction
+======================================================================
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[A] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[A] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 \gset
+[A] \echo A read the balance: :bal
+[A] A read the balance: 1000
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[B] SELECT points AS bal FROM demo_loyalty_account WHERE guest_id = 5 \gset
+[B] \echo B read the balance: :bal
+[B] B read the balance: 1000
+[B] SELECT pg_sleep(2) AS _ \gset
+[A] UPDATE demo_loyalty_account SET points = :bal + 100 WHERE guest_id = 5;
+[A] COMMIT;
+[A] \echo A committed
+[A] A committed
+[B] UPDATE demo_loyalty_account SET points = :bal + 200 WHERE guest_id = 5;
+[B] psql:<stdin>:6: ERROR:  could not serialize access due to concurrent update
+[B] ROLLBACK;
+[B] \echo B was refused and must retry its transaction
+[B] B was refused and must retry its transaction
+[result]  final_balance 
+[result] ---------------
+[result]           1100
+[result] (1 row)
+[result] 
+
+======================================================================
+D2a  LAST-ROOM RACE: B waits for A, then the exclusion constraint rejects B (A commits)
+======================================================================
+[A] BEGIN;
+[A] \echo A inserts a booking for room 2, 10-13 April 2027 (not committed yet)
+[A] A inserts a booking for room 2, 10-13 April 2027 (not committed yet)
+[A] WITH b AS (INSERT INTO booking(guest_id, hotel_id, source_id, check_in_date, check_out_date, num_guests, status)
+[A]            VALUES (11, 1, 1, '2027-04-10', '2027-04-13', 1, 'confirmed') RETURNING booking_id)
+[A] INSERT INTO booking_room(booking_id, room_id, rate_applied, stay_period)
+[A] SELECT booking_id, 2, 50, daterange('2027-04-10', '2027-04-13', '[)') FROM b;
+[A] SELECT pg_sleep(3) AS _ \gset
+[B] SELECT pg_sleep(1) AS _ \gset
+[B] BEGIN;
+[B] \echo B tries to book the SAME room for overlapping dates, 11-14 April
+[B] B tries to book the SAME room for overlapping dates, 11-14 April
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:07.265
+[B] (1 row)
+[B] 
+[B] WITH b AS (INSERT INTO booking(guest_id, hotel_id, source_id, check_in_date, check_out_date, num_guests, status)
+[B]            VALUES (12, 1, 1, '2027-04-11', '2027-04-14', 1, 'confirmed') RETURNING booking_id)
+[B] INSERT INTO booking_room(booking_id, room_id, rate_applied, stay_period)
+[B] SELECT booking_id, 2, 50, daterange('2027-04-11', '2027-04-14', '[)') FROM b;
+[A] COMMIT;
+[A] \echo A finished with COMMIT
+[A] A finished with COMMIT
+[B] psql:<stdin>:8: ERROR:  conflicting key value violates exclusion constraint "booking_room_room_id_stay_period_excl"
+[B] DETAIL:  Key (room_id, stay_period)=(2, [2027-04-11,2027-04-14)) conflicts with existing key (room_id, stay_period)=(2, [2027-04-10,2027-04-13)).
+[B] :ts;
+[B] psql:<stdin>:9: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+[B] COMMIT;
+[B] \echo B finished
+[B] B finished
+[result]  booking_id | guest_id | room_id |       stay_period       
+[result] ------------+----------+---------+-------------------------
+[result]      222008 |       11 |       2 | [2027-04-10,2027-04-13)
+[result] (1 row)
+[result] 
+
+======================================================================
+D2b  LAST-ROOM RACE: B waits for A, then succeeds because A rolled back
+======================================================================
+[A] BEGIN;
+[B] SELECT pg_sleep(1) AS _ \gset
+[A] \echo A inserts a booking for room 2, 10-13 April 2027 (not committed yet)
+[A] A inserts a booking for room 2, 10-13 April 2027 (not committed yet)
+[A] WITH b AS (INSERT INTO booking(guest_id, hotel_id, source_id, check_in_date, check_out_date, num_guests, status)
+[A]            VALUES (11, 1, 1, '2027-04-10', '2027-04-13', 1, 'confirmed') RETURNING booking_id)
+[A] INSERT INTO booking_room(booking_id, room_id, rate_applied, stay_period)
+[A] SELECT booking_id, 2, 50, daterange('2027-04-10', '2027-04-13', '[)') FROM b;
+[A] SELECT pg_sleep(3) AS _ \gset
+[B] BEGIN;
+[B] \echo B tries to book the SAME room for overlapping dates, 11-14 April
+[B] B tries to book the SAME room for overlapping dates, 11-14 April
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:10.885
+[B] (1 row)
+[B] 
+[B] WITH b AS (INSERT INTO booking(guest_id, hotel_id, source_id, check_in_date, check_out_date, num_guests, status)
+[B]            VALUES (12, 1, 1, '2027-04-11', '2027-04-14', 1, 'confirmed') RETURNING booking_id)
+[B] INSERT INTO booking_room(booking_id, room_id, rate_applied, stay_period)
+[B] SELECT booking_id, 2, 50, daterange('2027-04-11', '2027-04-14', '[)') FROM b;
+[A] ROLLBACK;
+[A] \echo A finished with ROLLBACK
+[A] A finished with ROLLBACK
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:12.905
+[B] (1 row)
+[B] 
+[B] COMMIT;
+[B] \echo B finished
+[B] B finished
+[result]  booking_id | guest_id | room_id |       stay_period       
+[result] ------------+----------+---------+-------------------------
+[result]      222011 |       12 |       2 | [2027-04-11,2027-04-14)
+[result] (1 row)
+[result] 
+
+======================================================================
+D3  LAST-ROOM RACE through sp_make_booking: lock on the room row, then a friendly error
+======================================================================
+[A] BEGIN;
+[A] \echo A calls sp_make_booking for room 3, 10-13 April 2027
+[A] A calls sp_make_booking for room 3, 10-13 April 2027
+[A] CALL sp_make_booking(21, 3, '2027-04-10', '2027-04-13', 1, 1);
+[A]  p_booking_id 
+[A] --------------
+[B] SELECT pg_sleep(1) AS _ \gset
+[A]        222012
+[A] (1 row)
+[A] 
+[A] \echo A holds the room lock for 3 seconds before committing
+[A] A holds the room lock for 3 seconds before committing
+[A] SELECT pg_sleep(3) AS _ \gset
+[B] \echo B calls sp_make_booking for the SAME room and overlapping dates
+[B] B calls sp_make_booking for the SAME room and overlapping dates
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:14.572
+[B] (1 row)
+[B] 
+[B] CALL sp_make_booking(22, 3, '2027-04-11', '2027-04-14', 1, 1);
+[A] COMMIT;
+[A] \echo A committed
+[A] A committed
+[B] psql:<stdin>:4: ERROR:  Room 3 is not available from 2027-04-11 to 2027-04-14
+[B] CONTEXT:  PL/pgSQL function sp_make_booking(integer,integer,date,date,integer,integer,integer) line 66 at RAISE
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:16.609
+[B] (1 row)
+[B] 
+[result]  bookings | invoices | payments 
+[result] ----------+----------+----------
+[result]         1 |        1 |        1
+[result] (1 row)
+[result] 
+
+======================================================================
+D4a  DIRTY READ: PostgreSQL never shows uncommitted data, even at READ UNCOMMITTED
+======================================================================
+[A] BEGIN;
+[A] UPDATE demo_rate SET nightly_rate = 999 WHERE rate_id = 1;
+[A] \echo A changed rate 1 to 999 but has NOT committed
+[A] A changed rate 1 to 999 but has NOT committed
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.7) AS _ \gset
+[B] BEGIN ISOLATION LEVEL READ UNCOMMITTED;
+[B] \echo B reads rate 1 at the lowest isolation level (READ UNCOMMITTED)
+[B] B reads rate 1 at the lowest isolation level (READ UNCOMMITTED)
+[B] SELECT rate_id, nightly_rate FROM demo_rate WHERE rate_id = 1;
+[B]  rate_id | nightly_rate 
+[B] ---------+--------------
+[B]        1 |        84.00
+[B] (1 row)
+[B] 
+[B] COMMIT;
+[A] ROLLBACK;
+[A] \echo A rolled back
+[A] A rolled back
+
+======================================================================
+D4b-1  NON-REPEATABLE READ at READ COMMITTED: A sees two different values
+======================================================================
+[A] BEGIN ISOLATION LEVEL READ COMMITTED;
+[A] SELECT nightly_rate AS first_read FROM demo_rate WHERE rate_id = 1;
+[A]  first_read 
+[A] ------------
+[A]       84.00
+[A] (1 row)
+[A] 
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.7) AS _ \gset
+[B] UPDATE demo_rate SET nightly_rate = nightly_rate + 10 WHERE rate_id = 1;
+[B] \echo B changed the rate by +10 and committed (autocommit)
+[B] B changed the rate by +10 and committed (autocommit)
+[A] SELECT nightly_rate AS second_read FROM demo_rate WHERE rate_id = 1;
+[A]  second_read 
+[A] -------------
+[A]        94.00
+[A] (1 row)
+[A] 
+[A] COMMIT;
+
+======================================================================
+D4b-2  NON-REPEATABLE READ at REPEATABLE READ: A sees the same value twice
+======================================================================
+[A] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[A] SELECT nightly_rate AS first_read FROM demo_rate WHERE rate_id = 1;
+[A]  first_read 
+[A] ------------
+[A]       84.00
+[A] (1 row)
+[A] 
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.7) AS _ \gset
+[B] UPDATE demo_rate SET nightly_rate = nightly_rate + 10 WHERE rate_id = 1;
+[B] \echo B changed the rate by +10 and committed (autocommit)
+[B] B changed the rate by +10 and committed (autocommit)
+[A] SELECT nightly_rate AS second_read FROM demo_rate WHERE rate_id = 1;
+[A]  second_read 
+[A] -------------
+[A]        84.00
+[A] (1 row)
+[A] 
+[A] COMMIT;
+
+======================================================================
+D4c-1  PHANTOM READ at READ COMMITTED: a new row appears inside A's transaction
+======================================================================
+[B] SELECT pg_sleep(0.7) AS _ \gset
+[A] BEGIN ISOLATION LEVEL READ COMMITTED;
+[A] SELECT count(*) AS first_count FROM demo_rate WHERE hotel_id = 1;
+[A]  first_count 
+[A] -------------
+[A]            5
+[A] (1 row)
+[A] 
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] INSERT INTO demo_rate VALUES (100, 1, 55.00);
+[B] \echo B inserted a new matching row and committed (autocommit)
+[B] B inserted a new matching row and committed (autocommit)
+[A] SELECT count(*) AS second_count FROM demo_rate WHERE hotel_id = 1;
+[A]  second_count 
+[A] --------------
+[A]             6
+[A] (1 row)
+[A] 
+[A] COMMIT;
+
+======================================================================
+D4c-2  PHANTOM READ at REPEATABLE READ: PostgreSQL snapshot hides the new row
+======================================================================
+[A] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[A] SELECT count(*) AS first_count FROM demo_rate WHERE hotel_id = 1;
+[A]  first_count 
+[A] -------------
+[A]            5
+[A] (1 row)
+[A] 
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.7) AS _ \gset
+[B] INSERT INTO demo_rate VALUES (100, 1, 55.00);
+[B] \echo B inserted a new matching row and committed (autocommit)
+[B] B inserted a new matching row and committed (autocommit)
+[A] SELECT count(*) AS second_count FROM demo_rate WHERE hotel_id = 1;
+[A]  second_count 
+[A] --------------
+[A]             5
+[A] (1 row)
+[A] 
+[A] COMMIT;
+
+======================================================================
+D5a  WRITE SKEW at REPEATABLE READ: both leave, the rule is broken
+======================================================================
+[A] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[A] SELECT count(*) >= 2 AS ok FROM demo_duty_roster WHERE on_duty \gset
+[A] \echo A checks the rule: at least 2 on duty so it is safe to leave? :ok
+[A] A checks the rule: at least 2 on duty so it is safe to leave? t
+[A] SELECT pg_sleep(1.5) AS _ \gset
+[B] SELECT pg_sleep(0.3) AS _ \gset
+[B] BEGIN ISOLATION LEVEL REPEATABLE READ;
+[B] SELECT count(*) >= 2 AS ok FROM demo_duty_roster WHERE on_duty \gset
+[B] \echo B checks the rule: at least 2 on duty so it is safe to leave? :ok
+[B] B checks the rule: at least 2 on duty so it is safe to leave? t
+[B] SELECT pg_sleep(2.7) AS _ \gset
+[A] \if :ok
+[A]   \echo A asks to go off duty (UPDATE sent)
+[A] A asks to go off duty (UPDATE sent)
+[A]   UPDATE demo_duty_roster SET on_duty = FALSE WHERE employee_id = 2;
+[A] \endif
+[A] COMMIT;
+[A] \echo A finished
+[A] A finished
+[B] \if :ok
+[B]   \echo B asks to go off duty (UPDATE sent)
+[B] B asks to go off duty (UPDATE sent)
+[B]   UPDATE demo_duty_roster SET on_duty = FALSE WHERE employee_id = 3;
+[B] \endif
+[B] COMMIT;
+[B] \echo B finished
+[B] B finished
+[result]  receptionists_on_duty |           note           
+[result] -----------------------+--------------------------
+[result]                      0 | rule: must be at least 1
+[result] (1 row)
+[result] 
+
+======================================================================
+D5b  WRITE SKEW at SERIALIZABLE: one transaction is aborted, the rule holds
+======================================================================
+[A] BEGIN ISOLATION LEVEL SERIALIZABLE;
+[A] SELECT count(*) >= 2 AS ok FROM demo_duty_roster WHERE on_duty \gset
+[A] \echo A checks the rule: at least 2 on duty so it is safe to leave? :ok
+[A] A checks the rule: at least 2 on duty so it is safe to leave? t
+[A] SELECT pg_sleep(1.5) AS _ \gset
+[B] SELECT pg_sleep(0.3) AS _ \gset
+[B] BEGIN ISOLATION LEVEL SERIALIZABLE;
+[B] SELECT count(*) >= 2 AS ok FROM demo_duty_roster WHERE on_duty \gset
+[B] \echo B checks the rule: at least 2 on duty so it is safe to leave? :ok
+[B] B checks the rule: at least 2 on duty so it is safe to leave? t
+[B] SELECT pg_sleep(2.7) AS _ \gset
+[A] \if :ok
+[A]   \echo A asks to go off duty (UPDATE sent)
+[A] A asks to go off duty (UPDATE sent)
+[A]   UPDATE demo_duty_roster SET on_duty = FALSE WHERE employee_id = 2;
+[A] \endif
+[A] COMMIT;
+[A] \echo A finished
+[A] A finished
+[B] \if :ok
+[B]   \echo B asks to go off duty (UPDATE sent)
+[B] B asks to go off duty (UPDATE sent)
+[B]   UPDATE demo_duty_roster SET on_duty = FALSE WHERE employee_id = 3;
+[B] psql:<stdin>:8: ERROR:  could not serialize access due to read/write dependencies among transactions
+[B] DETAIL:  Reason code: Canceled on identification as a pivot, during write.
+[B] HINT:  The transaction might succeed if retried.
+[B] \endif
+[B] COMMIT;
+[B] \echo B finished
+[B] B finished
+[result]  receptionists_on_duty |           note           
+[result] -----------------------+--------------------------
+[result]                      1 | rule: must be at least 1
+[result] (1 row)
+[result] 
+
+======================================================================
+D6a  DEADLOCK: A locks room 1 then 2, B locks room 2 then 1
+======================================================================
+[A] BEGIN;
+[A] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 1;
+[A] \echo A locked room 1
+[A] A locked room 1
+[A] SELECT pg_sleep(1.5) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 2;
+[B] \echo B locked room 2
+[B] B locked room 2
+[B] SELECT pg_sleep(1.5) AS _ \gset
+[A] \echo A now wants room 2
+[A] A now wants room 2
+[A] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 2;
+[B] \echo B now wants room 1
+[B] B now wants room 1
+[B] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 1;
+[A] psql:<stdin>:6: ERROR:  deadlock detected
+[B] COMMIT;
+[A] DETAIL:  Process 12396 waits for ShareLock on transaction 1735; blocked by process 21892.
+[B] \echo B finished
+[B] B finished
+[A] Process 21892 waits for ShareLock on transaction 1734; blocked by process 12396.
+[A] HINT:  See server log for query details.
+[A] CONTEXT:  while updating tuple (0,53) in relation "demo_room_status"
+[A] COMMIT;
+[A] \echo A finished
+[A] A finished
+[result]  room_id |  status   
+[result] ---------+-----------
+[result]        1 | cleaning
+[result]        2 | cleaning
+[result]        3 | available
+[result] (3 rows)
+[result] 
+
+======================================================================
+D6b  DEADLOCK AVOIDED: every transaction locks rooms in the same order (lowest room_id first)
+======================================================================
+[A] BEGIN;
+[A] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 1;
+[A] \echo A locked room 1
+[A] A locked room 1
+[A] SELECT pg_sleep(1.5) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] \echo B also locks room 1 FIRST (same order as A), so it waits
+[B] B also locks room 1 FIRST (same order as A), so it waits
+[B] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 1;
+[A] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 2;
+[A] \echo A locked room 2
+[A] A locked room 2
+[A] COMMIT;
+[A] \echo A finished
+[B] \echo B locked room 1
+[A] A finished
+[B] B locked room 1
+[B] UPDATE demo_room_status SET status = 'cleaning' WHERE room_id = 2;
+[B] \echo B locked room 2
+[B] B locked room 2
+[B] COMMIT;
+[B] \echo B finished
+[B] B finished
+[result]  room_id |  status   
+[result] ---------+-----------
+[result]        1 | cleaning
+[result]        2 | cleaning
+[result]        3 | available
+[result] (3 rows)
+[result] 
+
+======================================================================
+D7a  FOR UPDATE: B waits for A, then receives THE SAME ROOM (double-assignment risk)
+======================================================================
+[A] BEGIN;
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[A] SELECT room_id FROM demo_room_status
+[A] WHERE status = 'available'
+[A] ORDER BY room_id LIMIT 1 FOR UPDATE;
+[A]  room_id 
+[A] ---------
+[A]        1
+[A] (1 row)
+[A] 
+[A] \echo A picked a room and keeps it locked for 2 seconds
+[A] A picked a room and keeps it locked for 2 seconds
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] BEGIN;
+[B] \echo B asks for the next free room
+[B] B asks for the next free room
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:42.768
+[B] (1 row)
+[B] 
+[B] SELECT room_id FROM demo_room_status
+[B] WHERE status = 'available'
+[B] ORDER BY room_id LIMIT 1 FOR UPDATE;
+[B]  room_id 
+[B] ---------
+[B]        1
+[B] (1 row)
+[B] 
+[B] :ts;
+[A] COMMIT;
+[B]       at      
+[B] --------------
+[B]  01:19:44.260
+[B] (1 row)
+[B] 
+[B] COMMIT;
+
+======================================================================
+D7b  FOR UPDATE SKIP LOCKED: B immediately receives a DIFFERENT room
+======================================================================
+[A] BEGIN;
+[A] SELECT room_id FROM demo_room_status
+[A] WHERE status = 'available'
+[A] ORDER BY room_id LIMIT 1 FOR UPDATE SKIP LOCKED;
+[A]  room_id 
+[A] ---------
+[A]        1
+[A] (1 row)
+[A] 
+[A] \echo A picked a room and keeps it locked for 2 seconds
+[A] A picked a room and keeps it locked for 2 seconds
+[A] SELECT pg_sleep(2) AS _ \gset
+[B] SELECT pg_sleep(0.5) AS _ \gset
+[B] BEGIN;
+[B] \echo B asks for the next free room
+[B] B asks for the next free room
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:44.966
+[B] (1 row)
+[B] 
+[B] SELECT room_id FROM demo_room_status
+[B] WHERE status = 'available'
+[B] ORDER BY room_id LIMIT 1 FOR UPDATE SKIP LOCKED;
+[B]  room_id 
+[B] ---------
+[B]        2
+[B] (1 row)
+[B] 
+[B] :ts;
+[B]       at      
+[B] --------------
+[B]  01:19:44.970
+[B] (1 row)
+[B] 
+[B] COMMIT;
+[A] COMMIT;
+
+======================================================================
+All demos finished. Demo data has been reset.
+======================================================================

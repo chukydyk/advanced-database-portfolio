@@ -1,0 +1,182 @@
+Pager usage is off.
+Null display is "-".
+CALL
+
+======================================================================
+Starting row counts
+======================================================================
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220962 |        220962 |   207221 |   403053
+(1 row)
+
+
+======================================================================
+T1 COMMIT: a complete booking made of four dependent inserts
+(booking, room assignment, invoice, deposit payment)
+======================================================================
+BEGIN
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+Inside the transaction (visible to this session only):
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220963 |        220963 |   207222 |   403054
+(1 row)
+
+COMMIT
+After COMMIT (permanent, visible to everyone):
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220963 |        220963 |   207222 |   403054
+(1 row)
+
+ booking_id |  status   | invoice_id | total_amount | deposit 
+------------+-----------+------------+--------------+---------
+     222002 | confirmed |     207223 |       154.80 |   46.44
+(1 row)
+
+
+======================================================================
+T2 ROLLBACK after an error: the deposit uses a payment method that does
+not exist (method_id 99). Atomicity means NOTHING from this
+transaction may survive, including the booking and invoice.
+======================================================================
+Counts before:
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220963 |        220963 |   207222 |   403054
+(1 row)
+
+BEGIN
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+Next statement fails (foreign key violation):
+psql:sql/02_commit_rollback.sql:85: ERROR:  insert or update on table "payment" violates foreign key constraint "payment_method_id_fkey"
+DETAIL:  Key (method_id)=(99) is not present in table "payment_method".
+The transaction is now in an aborted state. Further commands are refused:
+psql:sql/02_commit_rollback.sql:88: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ROLLBACK
+Counts after ROLLBACK (must equal the counts before):
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220963 |        220963 |   207222 |   403054
+(1 row)
+
+
+======================================================================
+T3 ROLLBACK by choice: the guest abandons checkout
+======================================================================
+BEGIN
+INSERT 0 1
+Visible inside the transaction:
+ booking_id | status  | check_in_date 
+------------+---------+---------------
+     222004 | pending | 2027-03-20
+(1 row)
+
+ROLLBACK
+After ROLLBACK the booking no longer exists (0 rows expected):
+ booking_id | status | check_in_date 
+------------+--------+---------------
+(0 rows)
+
+
+======================================================================
+T4 SAVEPOINT: keep the booking, undo only the failed optional extra
+======================================================================
+BEGIN
+INSERT 0 1
+INSERT 0 1
+SAVEPOINT
+Adding a spa order for a service that does not exist (fails):
+psql:sql/02_commit_rollback.sql:124: ERROR:  insert or update on table "service_order" violates foreign key constraint "service_order_service_id_fkey"
+DETAIL:  Key (service_id)=(9999) is not present in table "service".
+ROLLBACK
+Rolled back to the savepoint. The booking is still in the transaction:
+ booking_id |  status   
+------------+-----------
+     222005 | confirmed
+(1 row)
+
+COMMIT
+After COMMIT: booking kept (1 row), failed spa order absent (0 rows):
+ booking_rows | service_order_rows 
+--------------+--------------------
+            1 |                  0
+(1 row)
+
+
+======================================================================
+T5 Stored procedure sp_make_booking: all-or-nothing in one call
+======================================================================
+T5a Valid booking:
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220964 |        220964 |   207222 |   403054
+(1 row)
+
+ p_booking_id 
+--------------
+       222006
+(1 row)
+
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220965 |        220965 |   207223 |   403055
+(1 row)
+
+T5b Same room, overlapping dates: friendly error, nothing partially saved:
+psql:sql/02_commit_rollback.sql:145: ERROR:  Room 5 is not available from 2027-04-02 to 2027-04-05
+CONTEXT:  PL/pgSQL function sp_make_booking(integer,integer,date,date,integer,integer,integer) line 66 at RAISE
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220965 |        220965 |   207223 |   403055
+(1 row)
+
+T5c Too many guests for a single room (room 5 sleeps 1 guest):
+psql:sql/02_commit_rollback.sql:149: ERROR:  Room 5 sleeps at most 1 guests (requested 3)
+CONTEXT:  PL/pgSQL function sp_make_booking(integer,integer,date,date,integer,integer,integer) line 32 at RAISE
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220965 |        220965 |   207223 |   403055
+(1 row)
+
+T5d Check-out before check-in:
+psql:sql/02_commit_rollback.sql:153: ERROR:  Check-out date must be after check-in date
+CONTEXT:  PL/pgSQL function sp_make_booking(integer,integer,date,date,integer,integer,integer) line 15 at RAISE
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220965 |        220965 |   207223 |   403055
+(1 row)
+
+
+======================================================================
+T6 Durability settings that make COMMIT permanent
+======================================================================
+ synchronous_commit 
+--------------------
+ on
+(1 row)
+
+ wal_level 
+-----------
+ replica
+(1 row)
+
+ fsync 
+-------
+ on
+(1 row)
+
+CALL
+
+Demo bookings removed. Final counts (should equal the starting counts):
+ bookings | booking_rooms | invoices | payments 
+----------+---------------+----------+----------
+   220962 |        220962 |   207221 |   403053
+(1 row)
+
