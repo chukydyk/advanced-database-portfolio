@@ -1,0 +1,700 @@
+
+======================================================================
+Q1  One lookup returns a complete guest profile (preferences, summary, recent stays)
+    Relational equivalent: joins across guest, loyalty_account, booking, hotel ...
+======================================================================
+{
+  _id: 100,
+  name: {
+    last: 'Njoroge',
+    first: 'Kamau'
+  },
+  email: 'kamau.njoroge.100@example.com',
+  loyalty: {
+    tier: 'Silver',
+    points: 4000
+  },
+  preferences: {
+    bed: 'twin',
+    dining: [
+      'no pork'
+    ],
+    pillow: 'firm',
+    languages: [
+      'Hausa'
+    ],
+    newsletter: true
+  },
+  recent_stays: [
+    {
+      hotel: 'The Homes Lagos',
+      status: 'completed',
+      check_in: ISODate('2026-05-17T00:00:00.000Z'),
+      hotel_id: 2,
+      check_out: ISODate('2026-05-19T00:00:00.000Z'),
+      room_type: 'Standard Single',
+      booking_id: 2531
+    },
+    {
+      hotel: 'The Homes Nairobi',
+      status: 'completed',
+      check_in: ISODate('2026-01-03T00:00:00.000Z'),
+      hotel_id: 5,
+      check_out: ISODate('2026-01-05T00:00:00.000Z'),
+      room_type: 'Standard Single',
+      booking_id: 48001
+    }
+  ],
+  stay_summary: {
+    nights: 40,
+    last_stay: ISODate('2026-05-19T00:00:00.000Z'),
+    total_spend: 4969.62,
+    hotels_visited: [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    completed_stays: 13
+  }
+}
+
+======================================================================
+Q2  Five latest 4-5 star reviews at The Homes Abuja that mention breakfast
+======================================================================
+{
+  title: 'Will be back',
+  rating: {
+    overall: 5
+  },
+  comment: 'The spa treatments were excellent. Breakfast was fresh and plentiful.',
+  posted_at: ISODate('2026-10-27T15:47:34.000Z'),
+  guest_display: 'Fatou B.'
+}
+{
+  title: 'Wonderful stay',
+  rating: {
+    overall: 5
+  },
+  comment: 'The air conditioning worked perfectly. Breakfast was fresh and plentiful.',
+  posted_at: ISODate('2026-10-25T17:09:45.000Z'),
+  guest_display: 'Kemi U.'
+}
+{
+  title: 'Wonderful stay',
+  rating: {
+    overall: 4
+  },
+  comment: 'Breakfast was fresh and plentiful. The room was spotless.',
+  posted_at: ISODate('2026-10-23T18:45:23.000Z'),
+  guest_display: 'Daniel O.'
+}
+{
+  title: 'Highly recommended',
+  rating: {
+    overall: 4
+  },
+  comment: 'WiFi was fast and reliable. Breakfast was fresh and plentiful.',
+  posted_at: ISODate('2026-10-22T19:29:00.000Z'),
+  guest_display: 'Yaw J.'
+}
+{
+  title: 'Excellent hotel',
+  rating: {
+    overall: 4
+  },
+  comment: 'Parking was easy and secure. Breakfast was fresh and plentiful.',
+  posted_at: ISODate('2026-10-21T18:18:23.000Z'),
+  guest_display: 'Zainab A.'
+}
+
+======================================================================
+Q3  Average rating per category and hotel (rating fields vary: 'food' exists in only some reviews)
+======================================================================
+[
+  {
+    _id: 'The Homes Abuja',
+    reviews: 9546,
+    food_rated: 3850,
+    overall: 4.02,
+    cleanliness: 3.89,
+    service: 3.9,
+    value: 3.88,
+    food: 3.89
+  },
+  {
+    _id: 'The Homes Accra',
+    reviews: 9534,
+    food_rated: 3840,
+    overall: 4.03,
+    cleanliness: 3.88,
+    service: 3.89,
+    value: 3.9,
+    food: 3.91
+  },
+  {
+    _id: 'The Homes Lagos',
+    reviews: 9687,
+    food_rated: 3881,
+    overall: 4.31,
+    cleanliness: 4.13,
+    service: 4.14,
+    value: 4.14,
+    food: 4.16
+  },
+  {
+    _id: 'The Homes Nairobi',
+    reviews: 9590,
+    food_rated: 3847,
+    overall: 4.01,
+    cleanliness: 3.88,
+    service: 3.88,
+    value: 3.87,
+    food: 3.87
+  },
+  {
+    _id: 'The Homes Port Harcourt',
+    reviews: 9727,
+    food_rated: 3856,
+    overall: 3.64,
+    cleanliness: 3.57,
+    service: 3.58,
+    value: 3.57,
+    food: 3.58
+  }
+]
+
+======================================================================
+Q4  The three most mentioned topics per hotel, with their average rating
+======================================================================
+[
+  {
+    _id: 'The Homes Abuja',
+    top: [
+      {
+        tag: 'spa',
+        mentions: 1583,
+        avg_rating: 4.05
+      },
+      {
+        tag: 'wifi',
+        mentions: 1557,
+        avg_rating: 4.03
+      },
+      {
+        tag: 'pool',
+        mentions: 1552,
+        avg_rating: 4
+      }
+    ]
+  },
+  {
+    _id: 'The Homes Accra',
+    top: [
+      {
+        tag: 'air conditioning',
+        mentions: 1574,
+        avg_rating: 4.03
+      },
+      {
+        tag: 'spa',
+        mentions: 1564,
+        avg_rating: 4.01
+      },
+      {
+        tag: 'cleanliness',
+        mentions: 1545,
+        avg_rating: 4.06
+      }
+    ]
+  },
+  {
+    _id: 'The Homes Lagos',
+    top: [
+      {
+        tag: 'staff',
+        mentions: 1600,
+        avg_rating: 4.32
+      },
+      {
+        tag: 'parking',
+        mentions: 1585,
+        avg_rating: 4.32
+      },
+      {
+        tag: 'value',
+        mentions: 1565,
+        avg_rating: 4.3
+      }
+    ]
+  },
+  {
+    _id: 'The Homes Nairobi',
+    top: [
+      {
+        tag: 'breakfast',
+        mentions: 1621,
+        avg_rating: 3.98
+      },
+      {
+        tag: 'staff',
+        mentions: 1553,
+        avg_rating: 4.04
+      },
+      {
+        tag: 'wifi',
+        mentions: 1547,
+        avg_rating: 4.01
+      }
+    ]
+  },
+  {
+    _id: 'The Homes Port Harcourt',
+    top: [
+      {
+        tag: 'check-in',
+        mentions: 1600,
+        avg_rating: 3.65
+      },
+      {
+        tag: 'pool',
+        mentions: 1597,
+        avg_rating: 3.59
+      },
+      {
+        tag: 'cleanliness',
+        mentions: 1576,
+        avg_rating: 3.63
+      }
+    ]
+  }
+]
+
+======================================================================
+Q5  Full-text search: reviews complaining about noise (ranked by relevance)
+======================================================================
+{
+  hotel: 'The Homes Lagos',
+  rating: {
+    overall: 2
+  },
+  comment: 'Noise from the corridor and street kept us awake.',
+  score: 0.5833333333333334
+}
+{
+  hotel: 'The Homes Port Harcourt',
+  rating: {
+    overall: 2
+  },
+  comment: 'Noise from the corridor and street kept us awake.',
+  score: 0.5833333333333334
+}
+{
+  hotel: 'The Homes Port Harcourt',
+  rating: {
+    overall: 1
+  },
+  comment: 'Noise from the corridor and street kept us awake.',
+  score: 0.5833333333333334
+}
+
+======================================================================
+Q6  Rating distribution and recommendation rate in ONE round trip ($facet + $bucket)
+======================================================================
+[
+  {
+    histogram: [
+      {
+        _id: 1,
+        reviews: 2932
+      },
+      {
+        _id: 2,
+        reviews: 3157
+      },
+      {
+        _id: 3,
+        reviews: 6171
+      },
+      {
+        _id: 4,
+        reviews: 14471
+      },
+      {
+        _id: 5,
+        reviews: 21353
+      }
+    ],
+    recommend: [
+      {
+        total: 48084,
+        recommended: 35824,
+        recommend_pct: 74.5
+      }
+    ]
+  }
+]
+
+======================================================================
+Q7  Event log: how many events of each type per hotel (payload differs by type)
+======================================================================
+[
+  {
+    _id: 1,
+    by_type: [
+      {
+        type: 'booking_created',
+        events: 8961
+      },
+      {
+        type: 'door_unlock',
+        events: 7944
+      },
+      {
+        type: 'check_in',
+        events: 7633
+      },
+      {
+        type: 'thermostat_set',
+        events: 3946
+      },
+      {
+        type: 'noise_alert',
+        events: 558
+      }
+    ]
+  },
+  {
+    _id: 2,
+    by_type: [
+      {
+        type: 'booking_created',
+        events: 8903
+      },
+      {
+        type: 'door_unlock',
+        events: 8033
+      },
+      {
+        type: 'check_in',
+        events: 7790
+      },
+      {
+        type: 'thermostat_set',
+        events: 4010
+      },
+      {
+        type: 'noise_alert',
+        events: 606
+      }
+    ]
+  },
+  {
+    _id: 3,
+    by_type: [
+      {
+        type: 'booking_created',
+        events: 8868
+      },
+      {
+        type: 'door_unlock',
+        events: 7969
+      },
+      {
+        type: 'check_in',
+        events: 7600
+      },
+      {
+        type: 'thermostat_set',
+        events: 4071
+      },
+      {
+        type: 'noise_alert',
+        events: 615
+      }
+    ]
+  },
+  {
+    _id: 4,
+    by_type: [
+      {
+        type: 'booking_created',
+        events: 8896
+      },
+      {
+        type: 'door_unlock',
+        events: 8063
+      },
+      {
+        type: 'check_in',
+        events: 7862
+      },
+      {
+        type: 'thermostat_set',
+        events: 4035
+      },
+      {
+        type: 'noise_alert',
+        events: 635
+      }
+    ]
+  },
+  {
+    _id: 5,
+    by_type: [
+      {
+        type: 'booking_created',
+        events: 8918
+      },
+      {
+        type: 'door_unlock',
+        events: 7991
+      },
+      {
+        type: 'check_in',
+        events: 7600
+      },
+      {
+        type: 'thermostat_set',
+        events: 3938
+      },
+      {
+        type: 'noise_alert',
+        events: 586
+      }
+    ]
+  }
+]
+
+======================================================================
+Q8  Five rooms with the most noise alerts, with their average decibel level
+======================================================================
+[
+  {
+    alerts: 14,
+    hotel_id: 2,
+    room_id: 542,
+    avg_db: 82.5
+  },
+  {
+    alerts: 12,
+    hotel_id: 3,
+    room_id: 18,
+    avg_db: 80.6
+  },
+  {
+    alerts: 12,
+    hotel_id: 3,
+    room_id: 588,
+    avg_db: 83.2
+  },
+  {
+    alerts: 11,
+    hotel_id: 5,
+    room_id: 205,
+    avg_db: 85.6
+  },
+  {
+    alerts: 11,
+    hotel_id: 4,
+    room_id: 259,
+    avg_db: 85.5
+  }
+]
+
+======================================================================
+Q9  $lookup (a join): loyalty members with their review count and average rating
+======================================================================
+[
+  {
+    _id: 1,
+    name: {
+      last: 'Hassan',
+      first: 'Ibrahim'
+    },
+    tier: 'Gold',
+    stays: 44,
+    reviews_written: 9,
+    avg_rating: 4.78
+  },
+  {
+    _id: 10,
+    name: {
+      last: 'Martin',
+      first: 'Amina'
+    },
+    tier: 'Silver',
+    stays: 25,
+    reviews_written: 8,
+    avg_rating: 3.88
+  },
+  {
+    _id: 1411,
+    name: {
+      last: 'Danjuma',
+      first: 'Musa'
+    },
+    tier: 'Silver',
+    stays: 19,
+    reviews_written: 8,
+    avg_rating: 4.25
+  },
+  {
+    _id: 21,
+    name: {
+      last: 'Nwosu',
+      first: 'Ibrahim'
+    },
+    tier: 'Silver',
+    stays: 14,
+    reviews_written: 7,
+    avg_rating: 4.57
+  },
+  {
+    _id: 80,
+    name: {
+      last: 'Nwosu',
+      first: 'Musa'
+    },
+    tier: 'Silver',
+    stays: 14,
+    reviews_written: 7,
+    avg_rating: 3.86
+  }
+]
+
+======================================================================
+Q10 Schema flexibility: which preference fields do guests actually have?
+======================================================================
+[
+  {
+    _id: 'newsletter',
+    guests: 50000
+  },
+  {
+    _id: 'bed',
+    guests: 30046
+  },
+  {
+    _id: 'languages',
+    guests: 19831
+  },
+  {
+    _id: 'floor',
+    guests: 17436
+  },
+  {
+    _id: 'dining',
+    guests: 14870
+  },
+  {
+    _id: 'pillow',
+    guests: 12421
+  },
+  {
+    _id: 'late_checkout',
+    guests: 9907
+  }
+]
+Vegetarian guests: 3013
+Guests wanting a late checkout: 9907
+
+======================================================================
+Q11 Hotel document: rooms embedded, so one read answers 'what does this hotel offer?'
+======================================================================
+[
+  {
+    _id: 1,
+    city: 'Abuja',
+    name: 'The Homes Abuja',
+    rooms_total: 120,
+    suites: 15,
+    services: [
+      'Restaurant',
+      'Room Service',
+      'Spa',
+      'Laundry',
+      'Airport Pickup',
+      'Minibar'
+    ]
+  },
+  {
+    _id: 2,
+    city: 'Lagos',
+    name: 'The Homes Lagos',
+    rooms_total: 120,
+    suites: 15,
+    services: [
+      'Restaurant',
+      'Room Service',
+      'Spa',
+      'Laundry',
+      'Airport Pickup',
+      'Minibar'
+    ]
+  },
+  {
+    _id: 3,
+    city: 'Port Harcourt',
+    name: 'The Homes Port Harcourt',
+    rooms_total: 120,
+    suites: 15,
+    services: [
+      'Restaurant',
+      'Room Service',
+      'Spa',
+      'Laundry',
+      'Airport Pickup',
+      'Minibar'
+    ]
+  },
+  {
+    _id: 4,
+    city: 'Accra',
+    name: 'The Homes Accra',
+    rooms_total: 120,
+    suites: 15,
+    services: [
+      'Restaurant',
+      'Room Service',
+      'Spa',
+      'Laundry',
+      'Airport Pickup',
+      'Minibar'
+    ]
+  },
+  {
+    _id: 5,
+    city: 'Nairobi',
+    name: 'The Homes Nairobi',
+    rooms_total: 120,
+    suites: 15,
+    services: [
+      'Restaurant',
+      'Room Service',
+      'Spa',
+      'Laundry',
+      'Airport Pickup',
+      'Minibar'
+    ]
+  }
+]
+{
+  _id: 1,
+  name: 'The Homes Abuja',
+  rooms: [
+    {
+      type: 'Standard Single',
+      floor: 1,
+      number: '101',
+      room_id: 1,
+      amenities: [
+        'WiFi',
+        'Air conditioning',
+        'TV'
+      ],
+      max_occupancy: 1
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+
+======================================================================
+I1  Find a guest by e-mail (login / front desk lookup)
+======================================================================
+  BEFORE (no index)
+    stages: COLLSCAN
+    documents examined: 50000 | index keys examined: 0 | returned: 1 | time: 29 ms
+  created index: email_1  {"email":1}
+  AFTER
+    stages: EXPRESS_IXSCAN(email_1)
+    documents examined: 1 | index keys examined: 1 | returned: 1 | time: 3 ms
+
+======================================================================
+I2  Latest 10 reviews of one hotel (compound index serves filter AND sort)
+======================================================================
+  BEFORE (no index)
+    stages: SORT -> COLLSCAN
+    documents examined: 48084 | index keys examined: 0 | returned: 10 | time: 92 ms
+  created index: hotel_id_1_posted_at_-1  {"hotel_id":1,"posted_at":-1}
+  AFTER
+    stages: LIMIT -> FETCH -> IXSCAN(hotel_id_1_posted_at_-1)
+    documents examined: 10 | index keys examined: 10 | returned: 10 | time: 3 ms
+
+======================================================================
+I3  Reviews tagged 'noise' with rating 2 or lower (multikey index on the tags array)
+======================================================================
+  BEFORE (no index)
+    stages: COLLSCAN
+    documents examined: 48084 | index keys examined: 0 | returned: 996 | time: 40 ms
+  created index: tags_1_rating.overall_1  {"tags":1,"rating.overall":1}
+  AFTER
+    stages: FETCH -> IXSCAN(tags_1_rating.overall_1)
+    documents examined: 996 | index keys examined: 996 | returned: 996 | time: 8 ms
+
+======================================================================
+I4  Noise alerts at hotel 1 in the last 30 days (compound index: equality, equality, range)
+======================================================================
+  BEFORE (no index)
+    stages: COLLSCAN
+    documents examined: 146031 | index keys examined: 0 | returned: 135 | time: 196 ms
+  created index: hotel_id_1_type_1_ts_-1  {"hotel_id":1,"type":1,"ts":-1}
+  AFTER
+    stages: FETCH -> IXSCAN(hotel_id_1_type_1_ts_-1)
+    documents examined: 135 | index keys examined: 135 | returned: 135 | time: 4 ms
+
+======================================================================
+I5  Top-spending Silver, Gold and Platinum members (compound index)
+======================================================================
+  BEFORE (no index)
+    stages: SORT -> COLLSCAN
+    documents examined: 50000 | index keys examined: 0 | returned: 10 | time: 65 ms
+  created index: loyalty.tier_1_stay_summary.total_spend_-1  {"loyalty.tier":1,"stay_summary.total_spend":-1}
+  AFTER
+    stages: LIMIT -> FETCH -> SORT_MERGE -> IXSCAN(loyalty.tier_1_stay_summary.total_spend_-1) -> IXSCAN(loyalty.tier_1_stay_summary.total_spend_-1) -> IXSCAN(loyalty.tier_1_stay_summary.total_spend_-1)
+    documents examined: 10 | index keys examined: 10 | returned: 10 | time: 2 ms
+
+======================================================================
+Index inventory and sizes (bytes)
+======================================================================
+guest_profiles: data 46578860 bytes | total index size 2977792 bytes
+   _id_: 626688
+   email_1: 1548288
+   loyalty.tier_1_stay_summary.total_spend_-1: 802816
+reviews: data 27187883 bytes | total index size 5238784 bytes
+   _id_: 548864
+   hotel_id_1_posted_at_-1: 598016
+   tags_1_rating.overall_1: 602112
+   reviews_text: 3096576
+   guest_id_1: 393216
+activity_events: data 21099322 bytes | total index size 3203072 bytes
+   _id_: 1462272
+   hotel_id_1_type_1_ts_-1: 1740800

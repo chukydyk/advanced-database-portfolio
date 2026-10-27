@@ -1,0 +1,2 @@
+# Exported NDJSON files are large (about 120 MB) and can be regenerated with sql/01_export_to_ndjson.sql
+data/*.ndjson

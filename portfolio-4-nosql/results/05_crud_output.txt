@@ -1,0 +1,75 @@
+
+======================================================================
+C1  INSERT a valid review
+======================================================================
+{
+  acknowledged: true,
+  insertedId: 900000001
+}
+
+======================================================================
+C2  INSERT an INVALID review: schema validation rejects it (rating 9, no comment)
+======================================================================
+Rejected as expected: Document failed validation
+Error code: 121 | message: Document failed validation
+
+======================================================================
+C3  READ it back
+======================================================================
+{
+  _id: 900000001,
+  hotel: 'The Homes Abuja',
+  rating: {
+    overall: 5,
+    cleanliness: 5,
+    service: 4
+  },
+  title: 'Superb weekend',
+  helpful_votes: 0
+}
+
+======================================================================
+C4  UPDATE: add a hotel response and increase helpful_votes in ONE atomic operation
+======================================================================
+{
+  acknowledged: true,
+  insertedId: null,
+  matchedCount: 1,
+  modifiedCount: 1,
+  upsertedCount: 0
+}
+{
+  _id: 900000001,
+  tags: [
+    'cleanliness',
+    'staff',
+    'front desk'
+  ],
+  helpful_votes: 1,
+  hotel_response: {
+    responded_at: ISODate('2026-10-27T09:55:42.244Z'),
+    by: 'Guest Relations',
+    text: 'Thank you, we hope to see you again soon.'
+  }
+}
+
+======================================================================
+C5  UPDATE a guest profile: add a new preference field (no schema migration needed)
+======================================================================
+Before: {"bed":"queen","floor":"high","newsletter":true}
+After:  {"bed":"queen","floor":"high","newsletter":true,"dining":["vegetarian"],"quiet_hours":{"from":"22:00","to":"07:00"}}
+
+======================================================================
+C6  Single-document atomicity: each $inc is applied atomically (20 increments, none lost)
+======================================================================
+helpful_votes after 20 increments: 20
+(Each $inc is applied atomically by the server, so no read-modify-write race as in Portfolio 3 D1a.)
+
+======================================================================
+C7  DELETE the test review
+======================================================================
+{
+  acknowledged: true,
+  deletedCount: 1
+}
+Test reviews remaining: 0
