@@ -1,6 +1,6 @@
 # Final Documentation: Advanced Database Systems Portfolio
 
-**N****am****e****:**** ****Chukwuma Dike**
+**Name**:**Chukwuma Dike**
 
 **Student ID: 301917844**
 
@@ -38,7 +38,7 @@ The main weaknesses are the single-computer lab and the simulated data. If I rep
 
 ## 4. AI-Use Declaration
 
-I used an AI assistant (Claude, by Anthropic) to help draft SQL and shell scripts. I ran the scripts on my own computer, produced my own screenshots and results. I am responsible for the submitted work.
+I used an AI assistant (Claude) to help generate data, draft SQL and shell scripts. I ran the scripts on my own computer, produced my own screenshots and results. I am responsible for the submitted work.
 
 ## 5. References
 
