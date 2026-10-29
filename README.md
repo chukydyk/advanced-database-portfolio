@@ -1,9 +1,10 @@
 # Advanced Database Systems Portfolio
 
-**Student:** Chukwuma Dike
-**Programme:** MSc Information Technology, Miva Open University
-**Case study:** The Homes Hotel (simulated multi-branch hotel reservation system)
-**Repository visibility:** Private
+**Student Name:** Chukwuma Dike <br>
+**Student ID:** 301917844<br>
+**Programme:** MSc Information Technology, Miva Open University<br>
+**Case study:** The Homes Hotel (simulated multi-branch hotel reservation system)<br>
+**Repository visibility:** Public
 
 ## Case study summary
 The Homes is a simulated hotel chain with several branches. The database covers guests, rooms, bookings, payments, check-in/check-out records, services, billing, housekeeping, maintenance, loyalty and audit logging. The same case study is used in every portfolio.
