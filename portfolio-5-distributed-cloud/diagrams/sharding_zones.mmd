@@ -1,0 +1,6 @@
+flowchart LR
+  APP[Application] --> R[mongos router]
+  R --> CFG[(Config servers: chunk map and zones)]
+  R --> S1[(Shard 1, zone NIGERIA: hotels 1 2 3)]
+  R --> S2[(Shard 2, zone REST_OF_AFRICA: hotels 4 5)]
+  R --> S1

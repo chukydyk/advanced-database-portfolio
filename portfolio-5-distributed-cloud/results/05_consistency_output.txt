@@ -1,0 +1,21 @@
+
+======================================================================
+S1  Cost of safety: 300 inserts with three different write concerns
+======================================================================
+w:1 (primary only)           total   894 ms | average 2.98 ms per write
+w:majority                   total 10876 ms | average 36.25 ms per write
+w:majority + journal         total 11874 ms | average 39.58 ms per write
+w:1 returns when only the primary has the write: fastest, but the write can be lost if the primary fails
+before a secondary copies it. w:majority waits for a majority, so the write survives any single failure.
+
+======================================================================
+S2  Eventual consistency: a secondary that is 5 seconds behind
+======================================================================
+primary: 127.0.0.1:27020 | normal secondary: 127.0.0.1:27019 | delayed secondary: 127.0.0.1:27018
+Delayed secondary configured (applies writes 5 s late).
+Wrote the document to the primary and a majority has acknowledged it.
+Read immediately  | primary 127.0.0.1:27020: true | normal secondary: true | delayed secondary: false
+Read 6.5 s later  | primary 127.0.0.1:27020: true | normal secondary: true | delayed secondary: true
+A reader on the delayed secondary saw STALE data (document missing) and then caught up: eventual consistency.
+
+Delay removed, replica set restored to normal.

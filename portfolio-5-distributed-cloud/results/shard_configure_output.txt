@@ -1,0 +1,77 @@
+
+======================================================================
+H1  Enable sharding and assign zones to shards
+======================================================================
+{
+  ok: 1,
+  '$clusterTime': {
+    clusterTime: Timestamp({ t: 1793207115, i: 23 }),
+    signature: {
+      hash: Binary.createFromBase64('AAAAAAAAAAAAAAAAAAAAAAAAAAA=', 0),
+      keyId: Long('0')
+    }
+  },
+  operationTime: Timestamp({ t: 1793207115, i: 23 })
+}
+Zone NIGERIA -> shard1rs, zone REST_OF_AFRICA -> shard2rs
+
+======================================================================
+H2  Shard activity_events on { hotel_id: 1, ts: 1 } and map hotels to zones
+======================================================================
+{
+  collectionsharded: 'the_homes_shard.activity_events',
+  ok: 1,
+  '$clusterTime': {
+    clusterTime: Timestamp({ t: 1793207116, i: 29 }),
+    signature: {
+      hash: Binary.createFromBase64('AAAAAAAAAAAAAAAAAAAAAAAAAAA=', 0),
+      keyId: Long('0')
+    }
+  },
+  operationTime: Timestamp({ t: 1793207116, i: 29 })
+}
+Zone ranges defined for activity_events
+
+======================================================================
+H3  Shard guest_profiles on a HASHED _id
+======================================================================
+{
+  collectionsharded: 'the_homes_shard.guest_profiles',
+  ok: 1,
+  '$clusterTime': {
+    clusterTime: Timestamp({ t: 1793207117, i: 24 }),
+    signature: {
+      hash: Binary.createFromBase64('AAAAAAAAAAAAAAAAAAAAAAAAAAA=', 0),
+      keyId: Long('0')
+    }
+  },
+  operationTime: Timestamp({ t: 1793207117, i: 24 })
+}
+
+======================================================================
+H4  Give the balancer a moment to place the empty chunks, then show the chunk map
+======================================================================
+
+the_homes_shard.activity_events  shard key: {"hotel_id":1,"ts":1}
+[
+  {
+    _id: 'shard1rs',
+    chunks: 1
+  },
+  {
+    _id: 'shard2rs',
+    chunks: 1
+  }
+]
+
+the_homes_shard.guest_profiles  shard key: {"_id":"hashed"}
+[
+  {
+    _id: 'shard1rs',
+    chunks: 1
+  },
+  {
+    _id: 'shard2rs',
+    chunks: 1
+  }
+]

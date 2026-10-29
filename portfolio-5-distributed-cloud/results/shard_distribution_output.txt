@@ -1,0 +1,41 @@
+
+======================================================================
+D1  Documents per shard
+======================================================================
+
+activity_events (146031 documents)
+  shard1rs:   87507 documents (59.9%)
+  shard2rs:   58524 documents (40.1%)
+
+guest_profiles (50000 documents)
+  shard1rs:   24602 documents (49.2%)
+  shard2rs:   25398 documents (50.8%)
+
+======================================================================
+D2  Which hotels are stored on which shard? (asking each shard directly)
+======================================================================
+shard1rs: hotel 1 (29042), hotel 2 (29342), hotel 3 (29123)
+shard2rs: hotel 4 (29491), hotel 5 (29033)
+
+======================================================================
+D3  Chunk count per shard
+======================================================================
+the_homes_shard.activity_events  key {"hotel_id":1,"ts":1}
+   shard1rs: 1 chunks
+   shard2rs: 1 chunks
+the_homes_shard.guest_profiles  key {"_id":"hashed"}
+   shard1rs: 1 chunks
+   shard2rs: 1 chunks
+
+======================================================================
+D4  Query routing: targeted (one shard) versus scatter-gather (every shard)
+======================================================================
+events WHERE hotel_id = 2 AND ts >= Sep 2026 (key prefix)  -> SINGLE_SHARD shards: shard1rs
+events WHERE hotel_id IN (1, 5) (hotels in both zones)     -> SHARD_MERGE  shards: shard1rs, shard2rs
+events WHERE type = 'noise_alert' (no shard key)           -> SHARD_MERGE  shards: shard2rs, shard1rs
+guest_profiles WHERE _id = 100 (hashed key, equality)      -> SINGLE_SHARD shards: shard2rs
+guest_profiles WHERE email = ... (no shard key)            -> SHARD_MERGE  shards: shard1rs, shard2rs
+guest_profiles WHERE _id between 1 and 50 (hashed key, range) -> SHARD_MERGE  shards: shard1rs, shard2rs
+
+Targeted queries touch one shard and scale with the cluster. Scatter-gather queries touch every shard,
+so the shard key must match the main access pattern. Range queries on a hashed key cannot be targeted.

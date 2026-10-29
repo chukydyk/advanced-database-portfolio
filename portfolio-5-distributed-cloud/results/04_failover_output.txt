@@ -1,0 +1,53 @@
+
+======================================================================
+F1  Before: who is primary?
+======================================================================
+Current primary: port 27018
+
+======================================================================
+F2  Start the writer (40 seconds, w: majority) and crash the primary after 8 seconds
+======================================================================
+[12:34:19] CRASHING the primary on port 27018 (process killed, no clean shutdown)
+[12:34:37] New primary elected: port 27020 (about 18 seconds after the crash, as seen by this script)
+
+======================================================================
+F3  What the application saw
+======================================================================
+[ 10.7s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 13.1s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 15.4s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 17.7s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 20.0s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 22.3s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 23.2s] write 64 was blocked for 14.5 s (election in progress)
+WRITER_SUMMARY acknowledged=184 errors_seen=6 slowest_write_ms=14479 at=23.2s
+ACKED=184
+
+======================================================================
+F4  Bring the old primary back: it should rejoin as a SECONDARY and catch up
+======================================================================
+[
+  {
+    member: '127.0.0.1:27018',
+    state: 'SECONDARY',
+    health: 1
+  },
+  {
+    member: '127.0.0.1:27019',
+    state: 'SECONDARY',
+    health: 1
+  },
+  {
+    member: '127.0.0.1:27020',
+    state: 'PRIMARY',
+    health: 1
+  }
+]
+
+======================================================================
+F5  Verification: was any acknowledged write lost?
+======================================================================
+acknowledged by the writer : 184
+documents stored           : 184
+highest sequence number    : 184  (no gaps)
+RESULT: no acknowledged write was lost

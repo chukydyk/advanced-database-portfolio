@@ -1,0 +1,9 @@
+[ 10.7s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 13.1s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 15.4s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 17.7s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 20.0s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 22.3s] write 64 failed (MongoServerSelectionError): connect ECONNREFUSED 127.0.0.1:27018
+[ 23.2s] write 64 was blocked for 14.5 s (election in progress)
+WRITER_SUMMARY acknowledged=184 errors_seen=6 slowest_write_ms=14479 at=23.2s
+ACKED=184

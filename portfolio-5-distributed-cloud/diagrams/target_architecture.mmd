@@ -1,0 +1,28 @@
+flowchart TB
+  subgraph Apps[Applications]
+    W[Website and mobile app]
+    FD[Front desk system]
+  end
+  subgraph Primary[Primary region]
+    PGP[(PostgreSQL primary)]
+    PGS[(Synchronous standby in a second zone)]
+    PGR[(Read replica for reports)]
+    M1[(MongoDB member 1)]
+    M2[(MongoDB member 2)]
+    RD[(Redis: holds, cache, sessions)]
+  end
+  subgraph DR[Disaster recovery region]
+    PGD[(Asynchronous standby)]
+    M3[(MongoDB member 3)]
+    BK[Backups and point-in-time recovery]
+  end
+  W --> PGP
+  FD --> PGP
+  W --> RD
+  W --> M1
+  PGP -- synchronous WAL --> PGS
+  PGP -- asynchronous WAL --> PGR
+  PGP -- asynchronous WAL --> PGD
+  M1 --- M2
+  M1 --- M3
+  PGP --> BK

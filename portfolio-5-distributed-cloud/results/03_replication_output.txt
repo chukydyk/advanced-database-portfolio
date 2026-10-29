@@ -1,0 +1,96 @@
+
+======================================================================
+R1  Replica set members: one PRIMARY accepts writes, the others are SECONDARY
+======================================================================
+[
+  {
+    member: '127.0.0.1:27018',
+    state: 'PRIMARY',
+    health: 1,
+    lag_seconds: 0
+  },
+  {
+    member: '127.0.0.1:27019',
+    state: 'SECONDARY',
+    health: 1,
+    lag_seconds: 10
+  },
+  {
+    member: '127.0.0.1:27020',
+    state: 'SECONDARY',
+    health: 1,
+    lag_seconds: 10
+  }
+]
+
+======================================================================
+R2  Write one review to the PRIMARY and wait until a majority has it (w: majority)
+======================================================================
+{
+  acknowledged: true,
+  insertedId: 'HA-DEMO-1'
+}
+
+======================================================================
+R3  Read the same review DIRECTLY from each member (secondaries need readPreference secondaryPreferred)
+======================================================================
+port 27018 PRIMARY   | reviews in collection: 48085 | demo review found: true
+port 27019 SECONDARY | reviews in collection: 48085 | demo review found: true
+port 27020 SECONDARY | reviews in collection: 48085 | demo review found: true
+
+======================================================================
+R4  The oplog entry that carried the write (this is what secondaries replay)
+======================================================================
+[
+  {
+    op: 'i',
+    ns: 'the_homes_ha.reviews',
+    o: {
+      _id: 'HA-DEMO-1',
+      comment: 'Replication demo review'
+    },
+    ts: Timestamp({ t: 1793186707, i: 1 })
+  }
+]
+
+======================================================================
+R5  Oplog window: how much history the primary keeps for secondaries that fall behind
+======================================================================
+actual oplog size
+'128 MB'
+---
+configured oplog size
+'128 MB'
+---
+log length start to end
+'164 secs (0.05 hrs)'
+---
+oplog first event time
+'Wed Oct 28 2026 12:22:23 GMT+0100 (West Africa Time)'
+---
+oplog last event time
+'Wed Oct 28 2026 12:25:07 GMT+0100 (West Africa Time)'
+---
+now
+'Wed Oct 28 2026 12:25:07 GMT+0100 (West Africa Time)'
+
+======================================================================
+R6  Replica set configuration (priorities and votes)
+======================================================================
+[
+  {
+    host: '127.0.0.1:27018',
+    priority: 1,
+    votes: 1
+  },
+  {
+    host: '127.0.0.1:27019',
+    priority: 1,
+    votes: 1
+  },
+  {
+    host: '127.0.0.1:27020',
+    priority: 1,
+    votes: 1
+  }
+]

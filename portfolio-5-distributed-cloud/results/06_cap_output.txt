@@ -1,0 +1,24 @@
+
+======================================================================
+P1  Healthy cluster: primary is port 27020
+======================================================================
+
+======================================================================
+P2  Failure: the two other members (27018 27019) become unreachable
+======================================================================
+Waiting 15 seconds for the survivor to notice it has lost its majority...
+
+======================================================================
+P3  What the lone survivor (port 27020) does
+======================================================================
+isWritablePrimary: true | secondary: false
+WRITE accepted (unexpected)
+READ still works -> reviews in collection: 48085 (data may be stale)
+Consistency was kept (no split brain), but write availability was lost.
+
+======================================================================
+P4  Recovery: restart the two members
+======================================================================
+Primary after recovery: port 27020
+WRITE accepted again with w: majority. Cluster is healthy.
+Test collection removed.
