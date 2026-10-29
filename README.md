@@ -2,7 +2,7 @@
 
 **Student:** Chukwuma Dike
 **Programme:** MSc Information Technology, Miva Open University
-**Case study:** The Homes Hotel Chain (simulated multi-branch hotel reservation system)
+**Case study:** The Homes Hotel (simulated multi-branch hotel reservation system)
 **Repository visibility:** Private
 
 ## Case study summary
@@ -21,19 +21,12 @@ The Homes is a simulated hotel chain with several branches. The database covers 
 |---|---|---|
 | `portfolio-1-database-design/` | Database design and modelling: case study, ER diagram, schema, keys, constraints, normalisation | completed |
 | `portfolio-2-query-optimisation/` | Query processing and optimisation: SQL queries, execution plans, indexing, performance analysis | Completed |
-| `portfolio-3-transactions-concurrency/` | Transactions and concurrency: commit, rollback, isolation, locking | Not started |
-| `portfolio-4-nosql/` | NoSQL and advanced data models | Not started |
-| `portfolio-5-distributed-cloud/` | Distributed and cloud database exercise | Not started |
-| `docs/` | Final 2-3 page summary, reflection, AI-use declaration | Not started |
+| `portfolio-3-transactions-concurrency/` | Transactions and concurrency: commit, rollback, isolation, locking | Completed |
+| `portfolio-4-nosql/` | NoSQL and advanced data models | Completed |
+| `portfolio-5-distributed-cloud/` | Distributed and cloud database exercise | Completed |
+| `docs/` | Final 2-3 page summary, reflection, AI-use declaration | Completed |
 
-## How to run the project
-```bash
-# 1. Create the database
-createdb the_homes
-
-# 2. Load the schema
-psql -d the_homes -f portfolio-1-database-design/schema.sql
-```
+## How I run the project
 Further steps (sample data, queries, experiments) are added in each portfolio's README as they are completed.
 
 ## Work log
@@ -44,11 +37,9 @@ Further steps (sample data, queries, experiments) are added in each portfolio's 
 ## Evidence conventions
 - Each portfolio folder has its own `README.md` with purpose, how to run, results and explanation.
 - Screenshots go in that folder's `screenshots/` directory, named `NN-short-description.png` (include failures and fixes, not just successes).
-- Commit after each completed activity with a clear message, for example `P2: add composite index on booking(hotel_id, check_in_date) with EXPLAIN comparison`.
 - No credentials, real personal data, or card numbers are ever committed.
 
-## References
-*(Add module references here.)*
 
 ## AI-use declaration
-*(Complete before submission: state where AI assistance was used, for example drafting the initial schema and documentation, and what you verified, tested, and changed yourself.)*
+AI was used to generate data, draft the schema and debug. 
+
